@@ -1,6 +1,6 @@
 # _map_align_
 
-_map_align_ takes two contact maps and returns an alignment that attempts to maximize the number of overlapping contacts while minimizing the number of gaps.
+_map_align_ takes two contact maps and returns an alignment that attempts to maximize the number of overlapping contacts while minimizing the number of gaps [1].
 
 ![example image](https://raw.githubusercontent.com/sokrypton/map_align/master/map_align_fig.png)
 
@@ -37,6 +37,18 @@ Options:  -s sequence.fas                - input, required
 
 ```
 
+More details on some options:
+
+ - '-M MAX' templates with more than MAX residues will be skipped 
+ (longer templates could much more time to be aligned)
+
+ - '-T TM' top N partial hits will be cleaned to exclude structurally similar matches: 
+ if two hits from the scan stage are similar with TM-score > TM then only one 
+ (with the higher alignment score) will appear in the final pool
+
+ - '-O PREFIX' top models will be saved as <PREFIX><TEMPLATE_ID>.pdb where TEMPLATE_ID is an ID from the list file
+
+
 ### Examples
 
 Align a contact map to a PDB file (with and without saving the partial thread):
@@ -51,8 +63,6 @@ $ ./map_align -s example/T0806.fas -c example/T0806.con -D example -L example/li
 ```
 
 
-### Experimental features
-
 ### Acknowledgements
 
 This package is a reimplementation of the orinal map_align program by S.Ovchinnikov [1] https://github.com/sokrypton/map_align to allow for:
@@ -63,7 +73,7 @@ This package is a reimplementation of the orinal map_align program by S.Ovchinni
 
 External packages/libraries:
  - kdtree library by John Tsiombikas https://github.com/jtsiomb/kdtree
- - C++ TM-align routine from Y.Zhang lab https://zhanglab.ccmb.med.umich.edu/TM-align
+ - C++ TM-align routine from Yang Zhang lab https://zhanglab.ccmb.med.umich.edu/TM-align
 
 ### References
 
