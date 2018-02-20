@@ -79,5 +79,5 @@ This package is a reimplementation of the [original map_align](https://github.co
 
 [1] S Ovchinnikov et al. Protein Structure Determination using Metagenome sequence data. (2017) Science. 355(6322):294–8.
 
-[2] Y Zhang & J Skolnick. TM-align: a protein structure alignment algorithm based on the TM-score. (2015) Nucleic Acids Res. 33(7):2302-9.
+[2] Y Zhang & J Skolnick. TM-align: a protein structure alignment algorithm based on the TM-score. (2005) Nucleic Acids Res. 33(7):2302-9.
 
