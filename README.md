@@ -6,9 +6,9 @@ _map_align_ takes two contact maps and returns an alignment that attempts to max
 
 ### Download and Installation
 ```sh
-$ git clone https://github.com/gjoni/map_align
-$ cd map_align
-$ make
+git clone https://github.com/gjoni/map_align
+cd map_align
+make
 ```
 
 ### Usage
@@ -71,7 +71,7 @@ This package is a reimplementation of the [original map_align](https://github.co
  - cleaning of partial threads based on TM-score [2]
  - multithreading
 
-External packages/libraries:
+##### External packages/libraries:
  - [kdtree library](https://github.com/jtsiomb/kdtree) by John Tsiombikas
  - [C++ TM-align routine](https://zhanglab.ccmb.med.umich.edu/TM-align) from Yang Zhang lab
 
