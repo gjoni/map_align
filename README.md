@@ -37,16 +37,16 @@ Options:  -s sequence.fas                - input, required
 
 ```
 
-More details on some options:
+##### More details on some options:
 
- - '-M MAX' templates with more than MAX residues will be skipped 
+* `-M MAX` templates with more than `MAX` residues will be skipped 
  (longer templates could much more time to be aligned)
 
- - '-T TM' top N partial hits will be cleaned to exclude structurally similar matches: 
- if two hits from the scan stage are similar with TM-score > TM then only one 
+* `-T TM` top N partial hits will be cleaned to exclude structurally similar matches: 
+ if two hits from the scan stage are similar with TM-score > `TM` then only one 
  (with the higher alignment score) will appear in the final pool
 
- - '-O PREFIX' top models will be saved as <PREFIX><TEMPLATE_ID>.pdb where TEMPLATE_ID is an ID from the list file
+* `-O PREFIX` top models will be saved as `<PREFIX><TEMPLATE_ID>.pdb` where `TEMPLATE_ID` is an ID from the `list` file
 
 
 ### Examples
