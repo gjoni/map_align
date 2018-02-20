@@ -65,7 +65,7 @@ $ ./map_align -s example/T0806.fas -c example/T0806.con -D example -L example/li
 
 ### Acknowledgements
 
-This package is a reimplementation of the [orinal map_align](https://github.com/sokrypton/map_align) program by S.Ovchinnikov [1] to allow for:
+This package is a reimplementation of the [original map_align](https://github.com/sokrypton/map_align) program by S.Ovchinnikov [1] to allow for:
  - direct use of PDB files as templates
  - output of partial threads in PDB format
  - cleaning of partial threads based on TM-score [2]
