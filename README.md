@@ -1,63 +1,74 @@
 # _map_align_
-_map_align_ takes two contact maps and returns an alignment that attempts to maximize the number of overlapping contacts while minimizing the number of gaps.
 
+_map_align_ takes two contact maps and returns an alignment that attempts to maximize the number of overlapping contacts while minimizing the number of gaps.
 
 ![example image](https://raw.githubusercontent.com/sokrypton/map_align/master/map_align_fig.png)
 
-### Installation
+### Download and Installation
 ```sh
-$ g++ -O3 -std=c++0x -o map_align main.cpp
+$ git clone https://github.com/gjoni/map_align
+$ cd map_align
+$ make
 ```
 
 ### Usage
+
 ```
--------------------------------------------------------------------
-MAP_ALIGN
--------------------------------------------------------------------
--a             contact map A               [REQUIRED]
--b             contact map B               [REQUIRED]
--gap_o         gap opening penalty         [Default=-1]
--gap_e         gap extension penalty       [Default=-0.01]
--sep_cut       seq seperation cutoff       [Default=3]
--iter          number of iterations        [Default=20]
--silent
--------------------------------------------------------------------
-Advanced options
--------------------------------------------------------------------
--range_a       trim map A to specified range(s) (eg. 0-20 50-100)
--range_b       trim map B to specified range(s)
--------------------------------------------------------------------
-Experimental features
--------------------------------------------------------------------
--use_gap_ss    penalize gaps at secondary structure elements(SSE)
--gap_ss_w      gap penality weight at SSE  [Default=2]
--use_prf       use sequence profile
--prf_w         profile weight              [Default=1]
--------------------------------------------------------------------
-```
-```sh
-$ map_align -a A.map -b B.map
+Usage:   ./map_align [-option] [argument]
+
+Options:  -s sequence.fas                - input, required
+          -c contacts.txt                - input, required
+
+          ***************** single template ****************
+          -p template.pdb                - input, required
+          -o match.pdb                   - output, optional
+
+                                  OR                        
+          ************** library of templates **************
+          -D path to templates           - input, required
+          -L list.txt with template IDs  - input, required
+          -O prefix for saving top hits  - output, optional
+          -N number of top hits to save    (10)
+          -T TM-score cleaning cut-off     (0.80)
+          -M max template size             (1000)
+
+          ********************** misc **********************
+          -t number of threads             (1)
+
 ```
 
-### contact map format
-- ```LEN 440``` - [len]gth
-- ```CON 0 4 1.0```  - [con]tact, i, j and weight.
-- ```PRF 0 A H 0.01 ... 0.01``` (optional) profile, i, amino acid (AA), secondary structure (SS) and profile frequencies (20 values). The order of the frequencies does not matter, as long as they match between the two contact maps being compared. H = Helix; E = Sheet; all other characters treated equally.
+### Examples
 
-### parsing output
-*  the output will be a single line (if -silent is used).
-   * ```MAX params map_a map_b contact_sco gap_sco total_sco aln_len 0:0 1:1 2:2 ...```
-   * the alignment is provided as ```0:0``` with index of first and second map.
-   * if "-use_prf" flag is used, the output will include an extra profile_sco column:
-      * ```MAX params map_a map_b contact_sco gap_sco profile_sco total_sco aln_len 0:0 1:1 2:2 ...```
-      
+Align a contact map to a PDB file (with and without saving the partial thread):
+
+```
+$ ./map_align -s sequence.fas -c contacts.txt -p template.pdb
+$ ./map_align -s sequence.fas -c contacts.txt -p template.pdb -o match.pdb
+```
+
+Align a contact map to a library of templates saving top 30 hits at TM-score=70% identity cut-off and running the program on 4 threads:
+```
+$ ./map_align -s sequence.fas -c contacts.txt -D PATH -L list -N 30 -T 0.70 -t 4 -O model_
+```
+
+
 ### Experimental features
-- WARNING: these are experimental features and may not work correctly!
-- "gap_ss" uses the SS info provided in the "PRF" line to increasing gap penalities within secondary structure elements, favoring gaps in loop or regions of missing density. 
-- "prf" uses the frequencies provided in the "PRF" line to assist in alignment. This option was intented to help align regions void of contact information.  The average frequencies of input profiles (from both maps) is used to compute the background frequencies. WARNING: This option may hurt finding the optimial alignment when aligning non-homologous proteins that share the same fold due to convergent evolution.
 
-### Convert GREMLIN/CCMPRED results to .map files
-* See [mk_map](https://github.com/sokrypton/map_align/tree/master/mk_map) directory!
+### Acknowledgements
 
-### Convert PDB to .map files 
-* See [mk_map](https://github.com/sokrypton/map_align/tree/master/mk_map) directory!
+This package is a reimplementation of the orinal map_align program by S.Ovchinnikov [1] to allow for:
+ - direct use of PDB files as templates
+ - output of partial threads in PDB format
+ - cleaning of partial threads based on TM-score [2]
+ - multithreading
+
+External packages/libraries:
+ - kdtree by John Tsiombikas https://github.com/jtsiomb/kdtree
+ - C++ TM-align routine from Y.Zhang lab https://zhanglab.ccmb.med.umich.edu/TM-align
+
+References:
+[1] S Ovchinnikov et al. Protein Structure Determination using Metagenome sequence data. (2017) Science. 355(6322):294–8.
+[2] Y Zhang & J Skolnick. TM-align: a protein structure alignment algorithm based on the TM-score. (2015) Nucleic Acids Res. 33(7):2302-9.
+
+
+
