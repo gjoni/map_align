@@ -40,7 +40,7 @@ Options:  -s sequence.fas                - input, required
 ##### More details on some options:
 
 * `-M MAX` templates with more than `MAX` residues will be skipped 
- (longer templates could much more time to be aligned)
+ (longer templates could take much more time to be aligned)
 
 * `-T TM` top N partial hits will be cleaned to exclude structurally similar matches: 
  if two hits from the scan stage are similar with TM-score > `TM` then only one 
@@ -65,15 +65,15 @@ $ ./map_align -s example/T0806.fas -c example/T0806.con -D example -L example/li
 
 ### Acknowledgements
 
-This package is a reimplementation of the orinal map_align program by S.Ovchinnikov [1] https://github.com/sokrypton/map_align to allow for:
+This package is a reimplementation of the [orinal map_align](https://github.com/sokrypton/map_align) program by S.Ovchinnikov [1] to allow for:
  - direct use of PDB files as templates
  - output of partial threads in PDB format
  - cleaning of partial threads based on TM-score [2]
  - multithreading
 
 External packages/libraries:
- - kdtree library by John Tsiombikas https://github.com/jtsiomb/kdtree
- - C++ TM-align routine from Yang Zhang lab https://zhanglab.ccmb.med.umich.edu/TM-align
+ - [kdtree library](https://github.com/jtsiomb/kdtree) by John Tsiombikas
+ - [C++ TM-align routine](https://zhanglab.ccmb.med.umich.edu/TM-align) from Yang Zhang lab
 
 ### References
 
