@@ -464,10 +464,11 @@ void SaveAtom(FILE *F, Atom *A, int atomNum, int resNum, char type) {
 
 	const char *resName = AAA3[MSAclass::aatoi(type)];
 
+	/* force occupancy to be 1.0 */
 	fprintf(F,
 			"ATOM  %5d  %-3s%c%3s %c%4d%c   %8.3f%8.3f%8.3f%6.2f%6.2f          %2s%2s\n",
 			atomNum, A->name, A->altLoc, resName, 'A', resNum, ' ', A->x, A->y,
-			A->z, A->occup, A->temp, A->element, A->charge);
+			A->z, 1.0 , A->temp, A->element, A->charge);
 
 }
 

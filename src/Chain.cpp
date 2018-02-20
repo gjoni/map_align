@@ -267,7 +267,7 @@ AtomRecord Chain::ReadAtomRecord(char* str) {
 		while (pch != str + 80) {
 			*pch++ = ' ';
 		}
-		pch = '\0';
+		*pch = '\0';
 	}
 
 	/*
