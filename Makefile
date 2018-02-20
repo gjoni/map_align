@@ -12,12 +12,6 @@ DEPS = $(shell find $(SRCDIR) -name '*.h')
 SRCS = $(shell find $(SRCDIR) -name '*.cpp')
 OBJS = $(patsubst $(SRCDIR)%.cpp, $(OBJDIR)%.o, $(SRCS))
 
-#objgr3=obj/gremlin3.o
-#objgr3c=obj/gremlin3c.o
-#objmap=obj/map_align.o
-fo_gr3=obj/gremlin3c.o obj/map_align.o
-fo_map=obj/gremlin3.o obj/gremlin3c.o
-
 all: $(OBJDIR) map_align
 
 $(OBJDIR):

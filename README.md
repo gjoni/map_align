@@ -40,15 +40,14 @@ Options:  -s sequence.fas                - input, required
 ### Examples
 
 Align a contact map to a PDB file (with and without saving the partial thread):
+```
+$ ./map_align -s example/T0806.fas -c example/T0806.con -p example/1A1X_A.pdb
+$ ./map_align -s example/T0806.fas -c example/T0806.con -p example/1A1X_A.pdb -o example/T0806.1A1X_A.pdb
+```
 
+Align a contact map to a library of templates saving top 5 hits at TM-score=70% identity cut-off and running the program on 4 cores:
 ```
-$ ./map_align -s sequence.fas -c contacts.txt -p template.pdb
-$ ./map_align -s sequence.fas -c contacts.txt -p template.pdb -o match.pdb
-```
-
-Align a contact map to a library of templates saving top 30 hits at TM-score=70% identity cut-off and running the program on 4 threads:
-```
-$ ./map_align -s sequence.fas -c contacts.txt -D PATH -L list -N 30 -T 0.70 -t 4 -O model_
+$ ./map_align -s example/T0806.fas -c example/T0806.con -D example -L example/list -N 5 -T 0.70 -t 4 -O example/T0806.
 ```
 
 
@@ -56,19 +55,19 @@ $ ./map_align -s sequence.fas -c contacts.txt -D PATH -L list -N 30 -T 0.70 -t 4
 
 ### Acknowledgements
 
-This package is a reimplementation of the orinal map_align program by S.Ovchinnikov [1] to allow for:
+This package is a reimplementation of the orinal map_align program by S.Ovchinnikov [1] https://github.com/sokrypton/map_align to allow for:
  - direct use of PDB files as templates
  - output of partial threads in PDB format
  - cleaning of partial threads based on TM-score [2]
  - multithreading
 
 External packages/libraries:
- - kdtree by John Tsiombikas https://github.com/jtsiomb/kdtree
+ - kdtree library by John Tsiombikas https://github.com/jtsiomb/kdtree
  - C++ TM-align routine from Y.Zhang lab https://zhanglab.ccmb.med.umich.edu/TM-align
 
-References:
+### References
+
 [1] S Ovchinnikov et al. Protein Structure Determination using Metagenome sequence data. (2017) Science. 355(6322):294–8.
+
 [2] Y Zhang & J Skolnick. TM-align: a protein structure alignment algorithm based on the TM-score. (2015) Nucleic Acids Res. 33(7):2302-9.
-
-
 

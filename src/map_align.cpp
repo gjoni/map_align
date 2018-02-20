@@ -21,7 +21,7 @@
 
 #define DMAX 5.0
 #define KMIN 3
-#define VERSION "V20180209"
+#define VERSION "V20180219"
 
 struct OPTS {
 	std::string seq; /* sequence file */
