@@ -50,7 +50,7 @@ Options:  -s sequence.fas                - input, required
 
 ##### Contact map format
 
-Contact map is a list of residue-residue pairs in the following format:
+Contact map is a list of residue-residue pairs in the following format (similar to [CASP RR format](http://www.predictioncenter.org/casp12/index.cgi?page=format#RR)):
 
 ```
 i  j  d1  d2  p
