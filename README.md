@@ -48,6 +48,17 @@ Options:  -s sequence.fas                - input, required
 
 * `-O PREFIX` top models will be saved as `<PREFIX><TEMPLATE_ID>.pdb` where `TEMPLATE_ID` is an ID from the `list` file
 
+##### Contact map format
+
+Contact map is a list of residue-residue pairs in the following format:
+
+```
+i  j  d1  d2  p
+```
+
+* `i`, `j` - indices of the two residues in contact
+* `d1`, `d2` - distance limits defining a contact (currently not used)
+* `p` - probability of the contact, should be in the range (0;1]
 
 ### Examples
 
