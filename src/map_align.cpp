@@ -23,6 +23,14 @@
 #define KMIN 3
 #define VERSION "V20180219"
 
+/*
+ * TODO:
+ *   1) output alignment info
+ *   2) ??? incorporate sequence into the contacts file ???
+ *   3) SS annotation from the template - read from A3M file
+ *   4) ??? profiles ???
+ */
+
 struct OPTS {
 	std::string seq; /* sequence file */
 	std::string con; /* contacts file */
