@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "CMap.h"
+#include "Chain.h"
 
 using namespace std;
 
@@ -30,6 +31,8 @@ private:
 	struct SWDATA {
 		const CMap &A;
 		const CMap &B;
+		const Chain &PA;
+		const Chain &PB;
 		double **mtx; /* contacts scoring matrix (M x N) */
 		double **sco; /* DP scoring matrix (M + 1) x (N + 1) */
 		char **label; /* path in the DP matrix (M + 1) x (N + 1) */
@@ -65,6 +68,13 @@ private:
 
 	static void UpdateMTX(SWDATA&, double, int iter);
 
+	/* TMscore of the map_aligned region */
+	static double TMscore(const SWDATA&);
+
+	/* MPscore of the tmaligned region */
+	static double MPscore(SWDATA&);
+	static double TMscore(const Chain&, const Chain&, const std::vector<int>&);
+
 public:
 
 	struct PARAMS {
@@ -76,7 +86,8 @@ public:
 
 	static double MaxScore(const CMap&);
 
-	static MP_RESULT Align(const CMap&, const CMap&, const PARAMS&);
+	static MP_RESULT Align(const CMap&, const CMap&, const Chain&, const Chain&,
+			const PARAMS&);
 
 };
 

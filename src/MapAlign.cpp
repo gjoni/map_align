@@ -10,6 +10,7 @@
 #include <algorithm>
 
 #include "MapAlign.h"
+#include "TMalign.h"
 
 MapAlign::MapAlign() {
 
@@ -241,16 +242,55 @@ MP_RESULT MapAlign::Assess(const SWDATA& swdata, double gap_e_w) {
 	scores.len.push_back(swdata.A.size);
 	scores.len.push_back(swdata.B.size);
 
+	/*
+	 * TM-align scores
+	 */
+
+	/* (1) between tmaligned PDBs */
+	TMalign TM;
+
+	/* TODO:
+	 *     1) move this piece of code into a separate function
+	 *     2) make a2b[..] mapping consistent with PDB */
+	scores.sco.push_back(
+			TM.GetTMscore(swdata.PA.ca_trace, swdata.PB.ca_trace,
+					swdata.PA.nRes, swdata.PB.nRes));
+	int *a2b_tmp = (int*) malloc(swdata.PA.nRes * sizeof(int));
+	TM.GetAliX2Y(a2b_tmp, swdata.PA.nRes);
+	std::vector<double> a2b(a2b_tmp, a2b_tmp + swdata.PA.nRes);
+	free(a2b_tmp);
+
+	/* (2) between map_aligned PDBs */
+	scores.sco.push_back(TMscore(swdata));
+
+	/* (3) MP-score for tmaligned region */
+	con_sco = 0.0;
+	for (auto &c : swdata.A.edges) {
+		int i = a2b[c.first.first];
+		int j = a2b[c.first.second];
+		if (i < 0 || j < 0) {
+			continue;
+		}
+		conA += c.second.first * sepw(c.second.second);
+		EListT::const_iterator it = swdata.B.edges.find( { i, j });
+		if (it != swdata.B.edges.end()) {
+			con_sco += c.second.first * it->second.first
+					* sepw(min(c.second.second, it->second.second));
+		}
+	}
+	scores.sco.push_back(con_sco);
+
 	return scores;
 
 }
 
-MP_RESULT MapAlign::Align(const CMap& A, const CMap& B, const PARAMS& par) {
+MP_RESULT MapAlign::Align(const CMap& A, const CMap& B, const Chain &PA,
+		const Chain &PB, const PARAMS& par) {
 
 	/*
 	 * (1) init alignment workspace
 	 */
-	SWDATA swdata = { A, B, NULL, NULL, NULL, vector<double>(A.size,
+	SWDATA swdata = { A, B, PA, PB, NULL, NULL, NULL, vector<double>(A.size,
 			par.gap_open), vector<double>(B.size, par.gap_open), vector<int>(
 			A.size), vector<int>(B.size) };
 	Alloc(&swdata);
@@ -506,5 +546,74 @@ double MapAlign::MaxScore(const CMap& A) {
 	}
 
 	return score;
+
+}
+
+//double MapAlign::TMscore(SWDATA& swdata) {
+//
+//	double tm = 0.0;
+//
+//	return tm;
+//
+//}
+
+double MapAlign::MPscore(SWDATA& swdata) {
+
+	double mp = 0.0;
+
+	return mp;
+
+}
+
+double MapAlign::TMscore(const SWDATA& swdata) {
+
+	/* allocate memory */
+	unsigned dim = swdata.a2b.size();
+	double **x = (double**) malloc(dim * sizeof(double*));
+	double **y = (double**) malloc(dim * sizeof(double*));
+	for (unsigned i = 0; i < dim; i++) {
+		x[i] = (double*) malloc(3 * sizeof(double));
+		y[i] = (double*) malloc(3 * sizeof(double));
+	}
+
+	/* get aligned residues */
+	dim = 0;
+	const Chain &A = swdata.PA;
+	const Chain &B = swdata.PB;
+	for (unsigned i = 0; i < swdata.a2b.size(); i++) {
+
+		Residue *R = A.GetResidue(i);
+		int idxb = swdata.a2b[i];
+		if (R != NULL && idxb > -1) {
+
+			x[dim][0] = R->CA->x;
+			x[dim][1] = R->CA->y;
+			x[dim][2] = R->CA->z;
+
+			y[dim][0] = B.residue[idxb].CA->x;
+			y[dim][1] = B.residue[idxb].CA->y;
+			y[dim][2] = B.residue[idxb].CA->z;
+
+			dim++;
+
+		}
+
+	}
+
+	double tm = 0.0;
+	if (dim >= 5) {
+		TMalign TM;
+		tm = TM.GetTMscore(x, y, dim) * dim / A.nRes;
+	}
+
+	/* free */
+	for (unsigned i = 0; i < swdata.a2b.size(); i++) {
+		free(x[i]);
+		free(y[i]);
+	}
+	free(x);
+	free(y);
+
+	return tm;
 
 }

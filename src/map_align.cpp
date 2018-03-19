@@ -55,9 +55,10 @@ void SaveMatch(std::string, const Chain&, const std::vector<int>&,
 		const std::string&);
 void SaveAtom(FILE *F, Atom *A, int atomNum, int resNum, char type);
 
-MP_RESULT Align(const CMap&, const OPTS&, const MapAlign::PARAMS& params,
-		const std::string&);
+MP_RESULT Align(const CMap&, const Chain&, const OPTS&,
+		const MapAlign::PARAMS& params, const std::string&);
 
+/* TM-score between two map_aligned hits */
 double TMscore(const Chain&, const Chain&, const std::vector<int>&,
 		const std::vector<int>&);
 
@@ -99,18 +100,30 @@ int main(int argc, char *argv[]) {
 	/*
 	 * (2) process single PDB input file (if any)
 	 */
-	if (opts.pdb != "") {
-		Chain C(opts.pdb);
-		CMap mapB(MapFromPDB(C));
-		std::vector<int> a2b;
-		MP_RESULT result = MapAlign::Align(mapA, mapB, params);
-		if (opts.out != "") {
-			SaveMatch(opts.out, C, a2b, seqA);
-		}
+	/*
+	 if (opts.pdb != "") {
+	 printf("single mode\n");
+	 Chain C(opts.pdb);
+	 CMap mapB(MapFromPDB(C));
+	 std::vector<int> a2b;
+	 MP_RESULT result = MapAlign::Align(mapA, mapB, params);
+	 if (opts.out != "") {
+	 SaveMatch(opts.out, C, a2b, seqA);
+	 }
 
-		return 0;
+	 printf("T %10s %15s", "from_file", result.label.c_str());
+	 for (auto &s : result.sco) {
+	 printf(" %10.3f", s);
+	 }
+	 for (auto &l : result.len) {
+	 printf(" %5d", l);
+	 }
+	 printf("\n");
 
-	}
+	 return 0;
+
+	 }
+	 */
 
 	/*
 	 * (3) process template library
@@ -131,6 +144,9 @@ int main(int argc, char *argv[]) {
 		fclose(F);
 	}
 
+	/* read reference PDB */
+	Chain A(opts.pdb);
+
 	/* read PDBs one by one and calculate alignments */
 	std::vector<std::pair<std::string, MP_RESULT> > hits;
 	int nskipped = 0;
@@ -140,7 +156,7 @@ int main(int argc, char *argv[]) {
 #endif
 	for (unsigned i = 0; i < listB.size(); i++) {
 
-		MP_RESULT result = Align(mapA, opts, params, listB[i]);
+		MP_RESULT result = Align(mapA, A, opts, params, listB[i]);
 
 #if defined(_OPENMP)
 #pragma omp critical
@@ -392,14 +408,14 @@ bool GetOpts(int argc, char *argv[], OPTS &opts) {
 		return false;
 	}
 
-	bool fl_both = (opts.pdb != "" && (opts.dir != "" || opts.list != ""));
-	bool fl_none = (opts.pdb == "" && (opts.dir == "" || opts.list == ""));
-
-	if (fl_both || fl_none) {
-		printf("Error: set either a PDB file ('-p') or "
-				"a library of templates ('-D' and '-L')\n");
-		return false;
-	}
+//	bool fl_both = (opts.pdb != "" && (opts.dir != "" || opts.list != ""));
+//	bool fl_none = (opts.pdb == "" && (opts.dir == "" || opts.list == ""));
+//
+//	if (fl_both || fl_none) {
+//		printf("Error: set either a PDB file ('-p') or "
+//				"a library of templates ('-D' and '-L')\n");
+//		return false;
+//	}
 
 	return true;
 
@@ -476,7 +492,7 @@ void SaveAtom(FILE *F, Atom *A, int atomNum, int resNum, char type) {
 	fprintf(F,
 			"ATOM  %5d  %-3s%c%3s %c%4d%c   %8.3f%8.3f%8.3f%6.2f%6.2f          %2s%2s\n",
 			atomNum, A->name, A->altLoc, resName, 'A', resNum, ' ', A->x, A->y,
-			A->z, 1.0 , A->temp, A->element, A->charge);
+			A->z, 1.0, A->temp, A->element, A->charge);
 
 }
 
@@ -507,7 +523,7 @@ void SaveMatch(std::string name, const Chain& C, const std::vector<int>& a2b,
 
 }
 
-MP_RESULT Align(const CMap& mapA, const OPTS& opts,
+MP_RESULT Align(const CMap& mapA, const Chain& A, const OPTS& opts,
 		const MapAlign::PARAMS& params, const std::string& id) {
 
 	std::string name = opts.dir + "/" + id + ".pdb";
@@ -515,7 +531,7 @@ MP_RESULT Align(const CMap& mapA, const OPTS& opts,
 	MP_RESULT result;
 	if (B.nRes > 20 && B.nRes < opts.maxres) {
 		CMap mapB = MapFromPDB(B);
-		result = MapAlign::Align(mapA, mapB, params);
+		result = MapAlign::Align(mapA, mapB, A, B, params);
 	}
 
 	return result;
@@ -579,3 +595,4 @@ double TMscore(const Chain& A, const Chain& B, const std::vector<int>& a2ref,
 	return tm;
 
 }
+
