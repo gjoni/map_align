@@ -616,9 +616,9 @@ void Chain::Renumber(const std::vector<int> &num) {
 
 }
 
-Residue* Chain::GetResidue(int n, char ins) {
+Residue* Chain::GetResidue(int n, char ins) const {
 
-	std::map<std::pair<int, char>, Residue*>::iterator it;
+	std::map<std::pair<int, char>, Residue*>::const_iterator it;
 	it = resmap.find( { n, ins });
 	if (it == resmap.end()) {
 		return NULL;

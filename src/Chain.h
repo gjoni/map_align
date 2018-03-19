@@ -73,7 +73,7 @@ public:
 	void Renumber(const std::vector<int> &num);
 
 	/* TODO: get residue by number in PDB */
-	Residue* GetResidue(int n, char ins = ' ');
+	Residue* GetResidue(int n, char ins = ' ') const;
 
 	std::string GetSequence();
 
