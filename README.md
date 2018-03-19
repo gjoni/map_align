@@ -2,6 +2,8 @@
 
 _map_align_ takes two contact maps and returns an alignment that attempts to maximize the number of overlapping contacts while minimizing the number of gaps [1].
 
+!!! Experimental branch to test local alignment strategies !!!
+
 ![example image](https://raw.githubusercontent.com/sokrypton/map_align/master/map_align_fig.png)
 
 ### Download and Installation
