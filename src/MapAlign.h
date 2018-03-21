@@ -12,6 +12,7 @@
 
 #include "CMap.h"
 #include "Chain.h"
+#include "RRCE.h"
 
 using namespace std;
 
@@ -43,6 +44,8 @@ private:
 		double tot_scoA;
 		double tot_scoB;
 	};
+
+	static const RRCE RRCE20RC;
 
 	static void Alloc(SWDATA*);
 	static void Free(SWDATA*);
@@ -76,6 +79,9 @@ private:
 
 	/* MPscore of the tmaligned region */
 	static double MPscore(const SWDATA&, const std::vector<int>&);
+
+	/* RRCE energy of the map-aligned region */
+	static double RRCEscore(const SWDATA&);
 
 public:
 

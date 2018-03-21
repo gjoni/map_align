@@ -12,6 +12,9 @@
 
 #include "MapAlign.h"
 #include "TMalign.h"
+#include "MSAclass.h"
+
+const RRCE MapAlign::RRCE20RC = RRCE(RRCE::RRCE20RC, 7.8, 4);
 
 MapAlign::MapAlign() {
 
@@ -256,6 +259,11 @@ MP_RESULT MapAlign::Assess(const SWDATA& swdata, double gap_e_w) {
 
 	/* (3) MP-score for tmaligned region */
 	scores.sco.push_back(MPscore(swdata, a2b));
+
+	/*
+	 * RRCE energy
+	 */
+	scores.sco.push_back(RRCEscore(swdata));
 
 	return scores;
 
@@ -642,5 +650,46 @@ double MapAlign::TMscore(const SWDATA& swdata) {
 	free(y);
 
 	return tm;
+
+}
+
+double MapAlign::RRCEscore(const SWDATA& swdata) {
+
+	double E = 0.0;
+
+	/* go over all contacts in mapA */
+	for (auto &c : swdata.A.edges) {
+		unsigned a = c.first.first;
+		unsigned b = c.first.second;
+		double p = c.second.first;
+
+		/* skip pair if any of the residues is not aligned */
+		if (swdata.a2b[a] < 0 || swdata.a2b[b] < 0) {
+			continue;
+		}
+
+		/* skip if any of the residues is not standard */
+		unsigned ta = MSAclass::aatoi(swdata.A.seq[a]);
+		unsigned tb = MSAclass::aatoi(swdata.A.seq[b]);
+		if (!(ta < 20 && tb < 20)) {
+			continue;
+		}
+
+		/* measure distance in the template */
+		Residue *Ra = &(swdata.PB.residue[swdata.a2b[a]]);
+		Residue *Rb = &(swdata.PB.residue[swdata.a2b[b]]);
+		double x = Ra->centroid[0] - Rb->centroid[0];
+		double y = Ra->centroid[1] - Rb->centroid[1];
+		double z = Ra->centroid[2] - Rb->centroid[2];
+		double d = sqrt(x * x + y * y + z * z);
+
+		/* get energy if residues are close enough */
+		if (d < 7.8) {
+			E += p * RRCE20RC.GetJij(ta, tb);
+		}
+
+	}
+
+	return E;
 
 }
