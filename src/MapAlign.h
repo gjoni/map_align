@@ -71,9 +71,11 @@ private:
 	/* TMscore of the map_aligned region */
 	static double TMscore(const SWDATA&);
 
+	/* TMscore of the tmaligned region with correct a2b[..] mapping */
+	static double TMscore(const SWDATA&, std::vector<int>&);
+
 	/* MPscore of the tmaligned region */
-	static double MPscore(SWDATA&);
-	static double TMscore(const Chain&, const Chain&, const std::vector<int>&);
+	static double MPscore(const SWDATA&, const std::vector<int>&);
 
 public:
 

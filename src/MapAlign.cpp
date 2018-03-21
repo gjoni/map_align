@@ -7,6 +7,7 @@
 
 #include <cstring>
 #include <cmath>
+#include <cassert>
 #include <algorithm>
 
 #include "MapAlign.h"
@@ -247,38 +248,14 @@ MP_RESULT MapAlign::Assess(const SWDATA& swdata, double gap_e_w) {
 	 */
 
 	/* (1) between tmaligned PDBs */
-	TMalign TM;
-
-	/* TODO:
-	 *     1) move this piece of code into a separate function
-	 *     2) make a2b[..] mapping consistent with PDB */
-	scores.sco.push_back(
-			TM.GetTMscore(swdata.PA.ca_trace, swdata.PB.ca_trace,
-					swdata.PA.nRes, swdata.PB.nRes));
-	int *a2b_tmp = (int*) malloc(swdata.PA.nRes * sizeof(int));
-	TM.GetAliX2Y(a2b_tmp, swdata.PA.nRes);
-	std::vector<double> a2b(a2b_tmp, a2b_tmp + swdata.PA.nRes);
-	free(a2b_tmp);
+	std::vector<int> a2b;
+	scores.sco.push_back(TMscore(swdata, a2b));
 
 	/* (2) between map_aligned PDBs */
 	scores.sco.push_back(TMscore(swdata));
 
 	/* (3) MP-score for tmaligned region */
-	con_sco = 0.0;
-	for (auto &c : swdata.A.edges) {
-		int i = a2b[c.first.first];
-		int j = a2b[c.first.second];
-		if (i < 0 || j < 0) {
-			continue;
-		}
-		conA += c.second.first * sepw(c.second.second);
-		EListT::const_iterator it = swdata.B.edges.find( { i, j });
-		if (it != swdata.B.edges.end()) {
-			con_sco += c.second.first * it->second.first
-					* sepw(min(c.second.second, it->second.second));
-		}
-	}
-	scores.sco.push_back(con_sco);
+	scores.sco.push_back(MPscore(swdata, a2b));
 
 	return scores;
 
@@ -549,17 +526,64 @@ double MapAlign::MaxScore(const CMap& A) {
 
 }
 
-//double MapAlign::TMscore(SWDATA& swdata) {
-//
-//	double tm = 0.0;
-//
-//	return tm;
-//
-//}
+double MapAlign::TMscore(const SWDATA& swdata, std::vector<int>& a2b) {
 
-double MapAlign::MPscore(SWDATA& swdata) {
+	double tm = 0.0;
+
+	a2b.clear();
+
+	/* regular TMalign - normalization by length of A */
+	TMalign TM;
+	tm = TM.GetTMscore(swdata.PA.ca_trace, swdata.PB.ca_trace, swdata.PA.nRes,
+			swdata.PB.nRes);
+	/* get alignment */
+	int *a2b_tmp = (int*) malloc(swdata.PA.nRes * sizeof(int));
+	TM.GetAliX2Y(a2b_tmp, swdata.PA.nRes);
+
+	/* make a2b[..] mapping consistent with PDB */
+	a2b.resize(swdata.A.size, -1);
+	for (int i = 0; i < swdata.PA.nRes; i++) {
+
+		/* skip residue if it is not tmaligned */
+		if (a2b_tmp[i] < 0) {
+			continue;
+		}
+
+		/* skip PDB residues with negative sequence numbers -
+		 * these are not present in the reference sequence */
+		Residue *R = &(swdata.PA.residue[i]);
+		if (R->seqNum < 0) {
+			continue;
+		}
+
+		/* re-map */
+		assert(R->seqNum < (int ) swdata.A.size);
+		a2b[R->seqNum] = a2b_tmp[i];
+
+	}
+
+	free(a2b_tmp);
+
+	return tm;
+
+}
+
+double MapAlign::MPscore(const SWDATA& swdata, const std::vector<int>& a2b) {
 
 	double mp = 0.0;
+
+	for (auto &c : swdata.A.edges) {
+		int i = a2b[c.first.first];
+		int j = a2b[c.first.second];
+		if (i < 0 || j < 0) {
+			continue;
+		}
+		EListT::const_iterator it = swdata.B.edges.find( { i, j });
+		if (it != swdata.B.edges.end()) {
+			mp += c.second.first * it->second.first
+					* sepw(min(c.second.second, it->second.second));
+		}
+	}
 
 	return mp;
 
@@ -582,7 +606,10 @@ double MapAlign::TMscore(const SWDATA& swdata) {
 	const Chain &B = swdata.PB;
 	for (unsigned i = 0; i < swdata.a2b.size(); i++) {
 
+		/* get residue in A by its number in PDB
+		 * !!! PDB and contact map indices should be consistent !!! */
 		Residue *R = A.GetResidue(i);
+
 		int idxb = swdata.a2b[i];
 		if (R != NULL && idxb > -1) {
 
