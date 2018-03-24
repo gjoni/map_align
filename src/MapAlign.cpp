@@ -703,6 +703,7 @@ double MapAlign::RRCEscore(const SWDATA& swdata, double &E2) {
 double MapAlign::RRCEscore2(const SWDATA& swdata, double &E2) {
 
 	double E = 0.0;
+	E2 = 0.0;
 
 	/* go over all residues in B */
 	for (int a = 0; a < swdata.PB.nRes; a++) {
