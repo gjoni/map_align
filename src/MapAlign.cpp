@@ -263,8 +263,11 @@ MP_RESULT MapAlign::Assess(const SWDATA& swdata, double gap_e_w) {
 	/*
 	 * RRCE energy
 	 */
-	scores.sco.push_back(RRCEscore(swdata));
-	scores.sco.push_back(RRCEscore2(swdata));
+	double E2;
+	scores.sco.push_back(RRCEscore(swdata, E2));
+	scores.sco.push_back(E2);
+	scores.sco.push_back(RRCEscore2(swdata, E2));
+	scores.sco.push_back(E2);
 
 	return scores;
 
@@ -654,9 +657,10 @@ double MapAlign::TMscore(const SWDATA& swdata) {
 
 }
 
-double MapAlign::RRCEscore(const SWDATA& swdata) {
+double MapAlign::RRCEscore(const SWDATA& swdata, double &E2) {
 
 	double E = 0.0;
+	E2 = 0.0;
 
 	/* go over all contacts in mapA */
 	for (auto &c : swdata.A.edges) {
@@ -687,6 +691,7 @@ double MapAlign::RRCEscore(const SWDATA& swdata) {
 		/* get energy if residues are close enough */
 		if (d < 7.8) {
 			E += p * RRCE20RC.GetJij(ta, tb);
+			E2 += p * RRCE20RC.GetJij(Ra->type, Rb->type);
 		}
 
 	}
@@ -695,7 +700,7 @@ double MapAlign::RRCEscore(const SWDATA& swdata) {
 
 }
 
-double MapAlign::RRCEscore2(const SWDATA& swdata) {
+double MapAlign::RRCEscore2(const SWDATA& swdata, double &E2) {
 
 	double E = 0.0;
 
@@ -745,6 +750,7 @@ double MapAlign::RRCEscore2(const SWDATA& swdata) {
 			}
 			
 			E += RRCE20RC.GetJij(ta, tb);
+			E2 += RRCE20RC.GetJij(swdata.PB.residue[a].type, swdata.PB.residue[b].type);
 			
 			kd_res_next(res);
 			

@@ -81,8 +81,8 @@ private:
 	static double MPscore(const SWDATA&, const std::vector<int>&);
 
 	/* RRCE energy of the map-aligned region */
-	static double RRCEscore(const SWDATA&);
-	static double RRCEscore2(const SWDATA&);
+	static double RRCEscore(const SWDATA&, double&);
+	static double RRCEscore2(const SWDATA&, double&);
 
 public:
 
