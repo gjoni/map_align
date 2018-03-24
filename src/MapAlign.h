@@ -82,6 +82,7 @@ private:
 
 	/* RRCE energy of the map-aligned region */
 	static double RRCEscore(const SWDATA&);
+	static double RRCEscore2(const SWDATA&);
 
 public:
 

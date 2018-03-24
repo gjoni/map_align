@@ -264,6 +264,7 @@ MP_RESULT MapAlign::Assess(const SWDATA& swdata, double gap_e_w) {
 	 * RRCE energy
 	 */
 	scores.sco.push_back(RRCEscore(swdata));
+	scores.sco.push_back(RRCEscore2(swdata));
 
 	return scores;
 
@@ -688,6 +689,61 @@ double MapAlign::RRCEscore(const SWDATA& swdata) {
 			E += p * RRCE20RC.GetJij(ta, tb);
 		}
 
+	}
+
+	return E;
+
+}
+
+double MapAlign::RRCEscore2(const SWDATA& swdata) {
+
+	double E = 0.0;
+
+	/* go over all residues in B */
+	for (int a = 0; a < swdata.PB.nRes; a++) {
+		
+		/* skip residue if not aligned */
+		int ia = swdata.b2a[a];
+		if (ia < 0) {
+			continue;
+		}
+		
+		/* skip if residue type is not standard */
+		unsigned ta = MSAclass::aatoi(swdata.A.seq[ia]);
+		if (ta >= 20) {
+			continue;
+		}
+		
+		/* search for neighbors */
+		double pos[3];
+		kdtree *kd = swdata.PB.kdCent;
+		double *xyz = swdata.PB.residue[a].centroid;
+		
+		kdres *res = kd_nearest_range(kd, xyz, 7.8);
+		while (!kd_res_end(res)) {
+			Atom *A = (Atom*) kd_res_item(res, pos);
+			int b = A->residue - swdata.PB.residue;
+			
+			/* prevent double counting */
+			if (a >= b) {
+				continue;
+			}
+			
+			/* skip if not aligned */
+			int ib = swdata.b2a[b];
+			if (ib < 0) {
+				continue;
+			}
+			
+			/* skip if non-standard */
+			unsigned tb = MSAclass::aatoi(swdata.A.seq[ib]);
+			if (tb >= 20) {
+				continue;
+			}
+			
+			E += RRCE20RC.GetJij(ta, tb);
+		}
+		kd_res_free(res);
 	}
 
 	return E;
