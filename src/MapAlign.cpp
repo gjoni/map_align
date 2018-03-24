@@ -726,22 +726,28 @@ double MapAlign::RRCEscore2(const SWDATA& swdata) {
 			
 			/* prevent double counting */
 			if (a >= b) {
+				kd_res_next(res);
 				continue;
 			}
 			
 			/* skip if not aligned */
 			int ib = swdata.b2a[b];
 			if (ib < 0) {
+				kd_res_next(res);
 				continue;
 			}
 			
 			/* skip if non-standard */
 			unsigned tb = MSAclass::aatoi(swdata.A.seq[ib]);
 			if (tb >= 20) {
+				kd_res_next(res);
 				continue;
 			}
 			
 			E += RRCE20RC.GetJij(ta, tb);
+			
+			kd_res_next(res);
+			
 		}
 		kd_res_free(res);
 	}
