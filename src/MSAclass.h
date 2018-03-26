@@ -13,6 +13,13 @@
 
 class MSAclass {
 
+	friend class ProblemBase;
+	friend class ProblemFull;
+	friend class ProblemFullOMP;
+	friend class ProblemFullAsym;
+	friend class ProblemPNAS;
+	friend class MRFclass;
+
 private:
 
 	/* raw MSA in A3M/FASTA */
@@ -61,6 +68,7 @@ public:
 	static void aatoi(unsigned char *str, size_t len);
 
 	MSAclass(const char *name);
+	MSAclass(const std::string&);
 	MSAclass(const MSAclass &source);
 	MSAclass();
 
@@ -79,7 +87,7 @@ public:
 	size_t GetLen() const;
 
 	/* sequence reweighting */
-	void Reweight(double t = 0.8);
+	double Reweight(double t = 0.8);
 	double GetWeight(size_t i) const;
 	double GetNeff() const; /* sum over weights */
 

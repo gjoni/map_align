@@ -16,6 +16,8 @@
 
 #include <algorithm>
 
+#include <omp.h>
+
 /* A B C D E F G H I J K L M N O P Q R S T U V W X Y Z */
 const unsigned char MSAclass::AMINO_INDICES[26] = { 0, 20, 4, 3, 6, 13, 7, 8, 9,
 		20, 11, 10, 12, 2, 20, 14, 5, 1, 15, 16, 20, 19, 17, 20, 18, 20 };
@@ -132,6 +134,11 @@ MSAclass::MSAclass(const char *name) :
 
 	/* set frequencies (with pseudocounts) */
 	SetFreq();
+
+}
+
+MSAclass::MSAclass(const std::string &name) :
+		MSAclass(name.c_str()) {
 
 }
 
@@ -689,7 +696,7 @@ void MSAclass::MI(double **mi) const {
 
 }
 
-void MSAclass::Reweight(double t) {
+double MSAclass::Reweight(double t) {
 
 	assert(t > 0.0 && t < 1.0); /* out of range */
 
@@ -699,6 +706,11 @@ void MSAclass::Reweight(double t) {
 
 	size_t nij = nrow * (nrow + 1) / 2;
 
+	unsigned char *msa = GetMsa();
+
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
 	for (size_t ij = 0; ij < nij; ij++) {
 
 		// compute i and j from ij
@@ -712,15 +724,12 @@ void MSAclass::Reweight(double t) {
 		}
 
 		size_t ids = 0;
-		const char *seqi = a3m[row_map[i]].second.c_str();
-		const char *seqj = a3m[row_map[j]].second.c_str();
+
+		unsigned char *seqi = msa + i * ncol;
+		unsigned char *seqj = msa + j * ncol;
 
 		for (size_t k = 0; k < ncol; k++) {
-//			if (msa[i * ncol + k] == msa[j * ncol + k]) {
-//			if (*seqi++ == *seqj++) {
-			if (seqi[col_map[k]] == seqj[col_map[k]]) {
-				ids++;
-			}
+			ids += (*seqi++ == *seqj++);
 		}
 
 		if (ids > idthres) {
@@ -728,6 +737,8 @@ void MSAclass::Reweight(double t) {
 			weight[j]++;
 		}
 	}
+
+	free(msa);
 
 	double wsum = 0, wmin = DBL_MAX, wmax = DBL_MIN;
 	for (size_t i = 0; i < nrow; i++) {
@@ -741,6 +752,8 @@ void MSAclass::Reweight(double t) {
 			wsum / nrow, wmin, wmax);
 
 	SetFreq();
+
+	return wsum;
 
 }
 
