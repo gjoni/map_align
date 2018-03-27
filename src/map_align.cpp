@@ -91,12 +91,23 @@ int main(int argc, char *argv[]) {
 	 *     from contacts file and sequence
 	 */
 	std::string seqA;
+	double neff = 0.0;
 	{
 		MSAclass msa(opts.seq.c_str());
 		seqA = msa.GetSequence(0);
+		neff = msa.Reweight(0.80);
 	}
 	CMap mapA(opts.con, seqA);
 
+	printf("# %s\n", std::string(70, '-').c_str());
+
+	printf("#\n");
+	printf("# %10s %15s %10s %10s %10s %10s %10s %10s %10s %10s %10s "
+			"%10s %10s %10s %5s %5s %5s\n", "TMPLT", "best_params", "cont_sco",
+			"gap_sco", "max_scoA", "max_scoB", "tot_scoA", "tot_scoB", "E_ali",
+			"E_thread", "TM-score", "TM_MP", "MP_TM", "Neff", "Nali", "lenA",
+			"lenB");
+	printf("#\n");
 	/*
 	 * (2) process single PDB input file (if any)
 	 */
@@ -157,21 +168,44 @@ int main(int argc, char *argv[]) {
 	for (unsigned i = 0; i < listB.size(); i++) {
 
 		MP_RESULT result = Align(mapA, A, opts, params, listB[i]);
+		result.sco.push_back(log(neff));
 
 #if defined(_OPENMP)
 #pragma omp critical
 #endif
 		{
 			if (result.sco.size()) {
+
+				/*
+				 * total score
+				 */
+				double s = -14.999688;
+				s += 31.030016 * result.sco[0] / result.sco[2];
+				s += 9.134780 * result.sco[0] / result.sco[4];
+				s -= 13.205455 * result.sco[0] / result.sco[5];
+
+				s += 67.557071 * result.sco[1] / result.len[0];
+				s -= 2.730587 * result.sco[6] / result.len[0];
+				s -= 4.946703 * result.sco[7] / result.len[0];
+				s += 10.465908 * result.sco[2] / result.len[0];
+				s -= 1.009450 * result.sco[3] / result.len[0];
+				s -= 1.078235 * result.sco[11];
+
+//				result.score = 1.0 / (1.0 + exp(-s));
+				result.score = s;
+
 				printf("# %10s %15s", listB[i].c_str(), result.label.c_str());
 				for (auto &s : result.sco) {
 					printf(" %10.3f", s);
 				}
+				printf(" %10.3f", result.score);
 				for (auto &s : result.len) {
 					printf(" %5d", s);
 				}
 				printf("\n");
+
 				hits.push_back(std::make_pair(listB[i], result));
+
 			} else {
 				printf("# %10s %15s\n", listB[i].c_str(), "...skipped...");
 				nskipped++;
@@ -342,11 +376,11 @@ void PrintCap(const OPTS &opts) {
 
 	printf("# %s\n", std::string(70, '-').c_str());
 
-	printf("#\n");
-	printf("# %10s %15s %10s %10s %10s %10s %10s %10s %5s %5s %5s\n", "TMPLT",
-			"best_params", "cont_sco", "gap_sco", "max_scoA", "max_scoB",
-			"tot_scoA", "tot_scoB", "Nali", "lenA", "lenB");
-	printf("#\n");
+//	printf("#\n");
+//	printf("# %10s %15s %10s %10s %10s %10s %10s %10s %5s %5s %5s\n", "TMPLT",
+//			"best_params", "cont_sco", "gap_sco", "max_scoA", "max_scoB",
+//			"tot_scoA", "tot_scoB", "Nali", "lenA", "lenB");
+//	printf("#\n");
 
 }
 

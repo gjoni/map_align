@@ -250,6 +250,15 @@ MP_RESULT MapAlign::Assess(const SWDATA& swdata, double gap_e_w) {
 	 * TM-align scores
 	 */
 
+	/*
+	 * RRCE energy
+	 */
+	double E, E2;
+	E = RRCEscore(swdata, E2);
+	scores.sco.push_back(E + E2);
+	E = RRCEscore2(swdata, E2);
+	scores.sco.push_back(E + E2);
+
 	/* (1) between tmaligned PDBs */
 	std::vector<int> a2b;
 	scores.sco.push_back(TMscore(swdata, a2b));
@@ -259,15 +268,6 @@ MP_RESULT MapAlign::Assess(const SWDATA& swdata, double gap_e_w) {
 
 	/* (3) MP-score for tmaligned region */
 	scores.sco.push_back(MPscore(swdata, a2b));
-
-	/*
-	 * RRCE energy
-	 */
-	double E2;
-	scores.sco.push_back(RRCEscore(swdata, E2));
-	scores.sco.push_back(E2);
-	scores.sco.push_back(RRCEscore2(swdata, E2));
-	scores.sco.push_back(E2);
 
 	return scores;
 
@@ -642,7 +642,8 @@ double MapAlign::TMscore(const SWDATA& swdata) {
 	double tm = 0.0;
 	if (dim >= 5) {
 		TMalign TM;
-		tm = TM.GetTMscore(x, y, dim) * dim / A.nRes;
+		tm = TM.GetTMscore(x, y, dim);
+//				* dim / A.nRes;
 	}
 
 	/* free */
@@ -707,54 +708,55 @@ double MapAlign::RRCEscore2(const SWDATA& swdata, double &E2) {
 
 	/* go over all residues in B */
 	for (int a = 0; a < swdata.PB.nRes; a++) {
-		
+
 		/* skip residue if not aligned */
 		int ia = swdata.b2a[a];
 		if (ia < 0) {
 			continue;
 		}
-		
+
 		/* skip if residue type is not standard */
 		unsigned ta = MSAclass::aatoi(swdata.A.seq[ia]);
 		if (ta >= 20) {
 			continue;
 		}
-		
+
 		/* search for neighbors */
 		double pos[3];
 		kdtree *kd = swdata.PB.kdCent;
 		double *xyz = swdata.PB.residue[a].centroid;
-		
+
 		kdres *res = kd_nearest_range(kd, xyz, 7.8);
 		while (!kd_res_end(res)) {
 			Atom *A = (Atom*) kd_res_item(res, pos);
 			int b = A->residue - swdata.PB.residue;
-			
+
 			/* prevent double counting */
 			if (a >= b) {
 				kd_res_next(res);
 				continue;
 			}
-			
+
 			/* skip if not aligned */
 			int ib = swdata.b2a[b];
 			if (ib < 0) {
 				kd_res_next(res);
 				continue;
 			}
-			
+
 			/* skip if non-standard */
 			unsigned tb = MSAclass::aatoi(swdata.A.seq[ib]);
 			if (tb >= 20) {
 				kd_res_next(res);
 				continue;
 			}
-			
+
 			E += RRCE20RC.GetJij(ta, tb);
-			E2 += RRCE20RC.GetJij(swdata.PB.residue[a].type, swdata.PB.residue[b].type);
-			
+			E2 += RRCE20RC.GetJij(swdata.PB.residue[a].type,
+					swdata.PB.residue[b].type);
+
 			kd_res_next(res);
-			
+
 		}
 		kd_res_free(res);
 	}

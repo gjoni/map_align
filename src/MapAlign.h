@@ -21,6 +21,7 @@ struct MP_RESULT {
 	std::vector<double> sco;
 	std::vector<int> len;
 	std::vector<int> a2b;
+	double score;
 };
 
 class MapAlign {
