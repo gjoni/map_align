@@ -260,16 +260,19 @@ MP_RESULT MapAlign::Assess(const SWDATA& swdata, double gap_e_w) {
 	scores.sco.push_back(E + E2);
 
 	/* (1) between tmaligned PDBs */
-	std::vector<int> a2b;
-	scores.sco.push_back(TMscore(swdata, a2b));
+//	std::vector<int> a2b;
+//	scores.sco.push_back(TMscore(swdata, a2b));
 
 	/* (2) between map_aligned PDBs */
-	unsigned dim;
-	scores.sco.push_back(TMscore(swdata, dim));
-	scores.len.push_back(dim);
+//	unsigned dim;
+//	scores.sco.push_back(TMscore(swdata, dim));
+//	scores.len.push_back(dim);
 
 	/* (3) MP-score for tmaligned region */
-	scores.sco.push_back(MPscore(swdata, a2b));
+	//	scores.sco.push_back(MPscore(swdata, a2b));
+	scores.sco.push_back(0.0);
+	scores.sco.push_back(0.0);
+	scores.sco.push_back(0.0);
 
 	return scores;
 

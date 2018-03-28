@@ -64,8 +64,9 @@ double TMscore(const Chain&, const Chain&, const std::vector<int>&,
 
 bool compare(const std::pair<std::string, MP_RESULT> &a,
 		const std::pair<std::string, MP_RESULT> &b) {
-	return (a.second.sco[0] + a.second.sco[1]
-			> b.second.sco[0] + b.second.sco[1]);
+	//	return (a.second.sco[0] + a.second.sco[1]
+	//			> b.second.sco[0] + b.second.sco[1]);
+	return (a.second.score > b.second.score);
 }
 
 int main(int argc, char *argv[]) {
@@ -103,10 +104,10 @@ int main(int argc, char *argv[]) {
 
 	printf("#\n");
 	printf("# %10s %15s %10s %10s %10s %10s %10s %10s %10s %10s %10s "
-			"%10s %10s %10s %5s %5s %5s\n", "TMPLT", "best_params", "cont_sco",
-			"gap_sco", "max_scoA", "max_scoB", "tot_scoA", "tot_scoB", "E_ali",
-			"E_thread", "TM-score", "TM_MP", "MP_TM", "Neff", "Nali", "lenA",
-			"lenB");
+			"%10s %10s %10s %10s %5s %5s %5s\n", "TMPLT", "best_params",
+			"Score", "cont_sco", "gap_sco", "max_scoA", "max_scoB", "tot_scoA",
+			"tot_scoB", "E_ali", "E_thread", "TM-score", "TM_MP", "MP_TM",
+			"Neff", "Nali", "lenA", "lenB");
 	printf("#\n");
 	/*
 	 * (2) process single PDB input file (if any)
@@ -195,10 +196,10 @@ int main(int argc, char *argv[]) {
 				result.score = s;
 
 				printf("# %10s %15s", listB[i].c_str(), result.label.c_str());
+				printf(" %10.3f", result.score);
 				for (auto &s : result.sco) {
 					printf(" %10.3f", s);
 				}
-				printf(" %10.3f", result.score);
 				for (auto &s : result.len) {
 					printf(" %5d", s);
 				}
@@ -301,6 +302,7 @@ int main(int argc, char *argv[]) {
 		std::string &id = top_hits[i].first;
 		MP_RESULT &result = top_hits[i].second;
 		printf("T %10s %15s", id.c_str(), result.label.c_str());
+		printf(" %10.3f", result.score);
 		for (auto &s : result.sco) {
 			printf(" %10.3f", s);
 		}
