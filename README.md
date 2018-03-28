@@ -2,8 +2,6 @@
 
 _map_align_ takes two contact maps and returns an alignment that attempts to maximize the number of overlapping contacts while minimizing the number of gaps [1].
 
-**!!! Experimental branch to test local alignment strategies !!!**
-
 ![example image](https://raw.githubusercontent.com/sokrypton/map_align/master/map_align_fig.png)
 
 ### Download and Installation
@@ -18,24 +16,17 @@ make
 ```
 Usage:   ./map_align [-option] [argument]
 
-Options:  -s sequence.fas                - input, required
+Options:  -s alignment.a3m               - input, required
           -c contacts.txt                - input, required
 
-          ***************** single template ****************
-          -p template.pdb                - input, required
-          -o match.pdb                   - output, optional
-
-                                  OR                        
-          ************** library of templates **************
           -D path to templates           - input, required
           -L list.txt with template IDs  - input, required
           -O prefix for saving top hits  - output, optional
-          -N number of top hits to save    (10)
-          -T TM-score cleaning cut-off     (0.80)
-          -M max template size             (1000)
+          -N number of top hits to save    10
+          -T TM-score cleaning cut-off     0.80
+          -M max template size             1000
 
-          ********************** misc **********************
-          -t number of threads             (1)
+          -t number of threads             1
 
 ```
 
