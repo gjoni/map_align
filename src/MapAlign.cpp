@@ -270,9 +270,9 @@ MP_RESULT MapAlign::Assess(const SWDATA& swdata, double gap_e_w) {
 
 	/* (3) MP-score for tmaligned region */
 	//	scores.sco.push_back(MPscore(swdata, a2b));
-	scores.sco.push_back(0.0);
-	scores.sco.push_back(0.0);
-	scores.sco.push_back(0.0);
+//	scores.sco.push_back(0.0);
+//	scores.sco.push_back(0.0);
+//	scores.sco.push_back(0.0);
 
 	return scores;
 

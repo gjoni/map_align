@@ -58,6 +58,9 @@ void SaveAtom(FILE *F, Atom *A, int atomNum, int resNum, char type);
 MP_RESULT Align(const CMap&, const Chain&, const OPTS&,
 		const MapAlign::PARAMS& params, const std::string&);
 
+MP_RESULT Align(const CMap&, const OPTS&, const MapAlign::PARAMS& params,
+		const std::string&);
+
 /* TM-score between two map_aligned hits */
 double TMscore(const Chain&, const Chain&, const std::vector<int>&,
 		const std::vector<int>&);
@@ -104,10 +107,9 @@ int main(int argc, char *argv[]) {
 
 	printf("#\n");
 	printf("# %10s %15s %10s %10s %10s %10s %10s %10s %10s %10s %10s "
-			"%10s %10s %10s %10s %5s %5s %5s\n", "TMPLT", "best_params",
-			"Score", "cont_sco", "gap_sco", "max_scoA", "max_scoB", "tot_scoA",
-			"tot_scoB", "E_ali", "E_thread", "TM-score", "TM_MP", "MP_TM",
-			"Neff", "Nali", "lenA", "lenB");
+			"%10s %5s %5s %5s\n", "TMPLT", "best_params", "Score", "cont_sco",
+			"gap_sco", "max_scoA", "max_scoB", "tot_scoA", "tot_scoB", "E_ali",
+			"E_thread", "Neff", "Nali", "lenA", "lenB");
 	printf("#\n");
 	/*
 	 * (2) process single PDB input file (if any)
@@ -157,8 +159,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* read reference PDB */
-	Chain A(opts.pdb);
-
+//	Chain A(opts.pdb);
 	/* read PDBs one by one and calculate alignments */
 	std::vector<std::pair<std::string, MP_RESULT> > hits;
 	int nskipped = 0;
@@ -168,7 +169,8 @@ int main(int argc, char *argv[]) {
 #endif
 	for (unsigned i = 0; i < listB.size(); i++) {
 
-		MP_RESULT result = Align(mapA, A, opts, params, listB[i]);
+//		MP_RESULT result = Align(mapA, A, opts, params, listB[i]);
+		MP_RESULT result = Align(mapA, opts, params, listB[i]);
 		result.sco.push_back(log(neff));
 
 #if defined(_OPENMP)
@@ -336,21 +338,21 @@ int main(int argc, char *argv[]) {
 void PrintOpts(const OPTS &opts) {
 
 	printf("\nUsage:   ./map_align [-option] [argument]\n\n");
-	printf("Options:  -s sequence.fas                - input, required\n");
+	printf("Options:  -s alignment.a3m               - input, required\n");
 	printf("          -c contacts.txt                - input, required\n\n");
-	printf("          ***************** single template ****************\n");
-	printf("          -p template.pdb                - input, required\n");
-	printf("          -o match.pdb                   - output, optional\n\n");
-	printf("                                  OR                        \n");
-	printf("          ************** library of templates **************\n");
+//	printf("          ***************** single template ****************\n");
+//	printf("          -p template.pdb                - input, required\n");
+//	printf("          -o match.pdb                   - output, optional\n\n");
+//	printf("                                  OR                        \n");
+//	printf("          ************** library of templates **************\n");
 	printf("          -D path to templates           - input, required\n");
 	printf("          -L list.txt with template IDs  - input, required\n");
 	printf("          -O prefix for saving top hits  - output, optional\n");
-	printf("          -N number of top hits to save    (%u)\n", opts.num);
-	printf("          -T TM-score cleaning cut-off     (%.2f)\n", opts.tmmax);
-	printf("          -M max template size             (%d)\n\n", opts.maxres);
-	printf("          ********************** misc **********************\n");
-	printf("          -t number of threads             (%d)\n", opts.nthreads);
+	printf("          -N number of top hits to save    %u\n", opts.num);
+	printf("          -T TM-score cleaning cut-off     %.2f\n", opts.tmmax);
+	printf("          -M max template size             %d\n\n", opts.maxres);
+//	printf("          ********************** misc **********************\n");
+	printf("          -t number of threads             %d\n", opts.nthreads);
 	printf("\n");
 
 }
@@ -568,6 +570,21 @@ MP_RESULT Align(const CMap& mapA, const Chain& A, const OPTS& opts,
 	if (B.nRes > 20 && B.nRes < opts.maxres) {
 		CMap mapB = MapFromPDB(B);
 		result = MapAlign::Align(mapA, mapB, A, B, params);
+	}
+
+	return result;
+
+}
+
+MP_RESULT Align(const CMap& mapA, const OPTS& opts,
+		const MapAlign::PARAMS& params, const std::string& id) {
+
+	std::string name = opts.dir + "/" + id + ".pdb";
+	Chain B(name);
+	MP_RESULT result;
+	if (B.nRes > 20 && B.nRes < opts.maxres) {
+		CMap mapB = MapFromPDB(B);
+		result = MapAlign::Align(mapA, mapB, B, B, params);
 	}
 
 	return result;
