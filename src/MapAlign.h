@@ -73,7 +73,7 @@ private:
 	static void UpdateMTX(SWDATA&, double, int iter);
 
 	/* TMscore of the map_aligned region */
-	static double TMscore(const SWDATA&);
+	static double TMscore(const SWDATA&, unsigned&);
 
 	/* TMscore of the tmaligned region with correct a2b[..] mapping */
 	static double TMscore(const SWDATA&, std::vector<int>&);
