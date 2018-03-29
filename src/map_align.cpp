@@ -183,18 +183,32 @@ int main(int argc, char *argv[]) {
 				/*
 				 * total score
 				 */
-				double s = -14.999688;
+				double s = -21.271633;
 
-				s += 31.030016 * result.sco[0] / result.sco[2];
-				s += 9.134780 * result.sco[0] / result.sco[4];
-				s -= 13.205455 * result.sco[0] / result.sco[5];
+				/* con/maxA */
+				s += 28.393102 * result.sco[0] / result.sco[2];
 
-				s += 67.557071 * result.sco[1] / result.len[0];
-				s -= 2.730587 * result.sco[6] / result.len[0];
-				s -= 4.946703 * result.sco[7] / result.len[0];
-				s += 10.465908 * result.sco[2] / result.len[0];
-				s -= 1.009450 * result.sco[3] / result.len[0];
-				s -= 1.078235 * result.sco[8];
+				/* con/totA */
+				s += 8.615196 * result.sco[0] / result.sco[4];
+
+				/* gap/aliN */
+				s += 67.635687 * result.sco[1] / result.len[0];
+
+				/* E1,E2/aliN */
+				s -= 6.488589 * result.sco[6] / result.len[0];
+				s -= 2.859188 * result.sco[7] / result.len[0];
+
+				/* maxA/aliN */
+				s += 7.966686 * result.sco[2] / result.len[0];
+
+				/* maxB/aliN */
+				s -= 0.556918 * result.sco[3] / result.len[0];
+
+				/* log(Neff) */
+				s -= 0.921881 * result.sco[8];
+
+				/* log(aliN) */
+				s += 1.113898 * log(1.0 * result.len[0]);
 
 //				result.score = 1.0 / (1.0 + exp(-s));
 				result.score = s;
