@@ -21,7 +21,7 @@
 
 #define DMAX 5.0
 #define KMIN 3
-#define VERSION "V20180219"
+#define VERSION "V20180328"
 
 /*
  * TODO:
@@ -171,7 +171,6 @@ int main(int argc, char *argv[]) {
 
 //		MP_RESULT result = Align(mapA, A, opts, params, listB[i]);
 		MP_RESULT result = Align(mapA, opts, params, listB[i]);
-		result.sco.push_back(log(neff));
 
 #if defined(_OPENMP)
 #pragma omp critical
@@ -179,10 +178,13 @@ int main(int argc, char *argv[]) {
 		{
 			if (result.sco.size()) {
 
+				result.sco.push_back(log(neff));
+
 				/*
 				 * total score
 				 */
 				double s = -14.999688;
+
 				s += 31.030016 * result.sco[0] / result.sco[2];
 				s += 9.134780 * result.sco[0] / result.sco[4];
 				s -= 13.205455 * result.sco[0] / result.sco[5];
@@ -192,12 +194,12 @@ int main(int argc, char *argv[]) {
 				s -= 4.946703 * result.sco[7] / result.len[0];
 				s += 10.465908 * result.sco[2] / result.len[0];
 				s -= 1.009450 * result.sco[3] / result.len[0];
-				s -= 1.078235 * result.sco[11];
+				s -= 1.078235 * result.sco[8];
 
 //				result.score = 1.0 / (1.0 + exp(-s));
 				result.score = s;
 
-				printf("# %10s %15s", listB[i].c_str(), result.label.c_str());
+				printf("M %10s %15s", listB[i].c_str(), result.label.c_str());
 				printf(" %10.3f", result.score);
 				for (auto &s : result.sco) {
 					printf(" %10.3f", s);
@@ -210,7 +212,7 @@ int main(int argc, char *argv[]) {
 				hits.push_back(std::make_pair(listB[i], result));
 
 			} else {
-				printf("# %10s %15s\n", listB[i].c_str(), "...skipped...");
+				printf("S %10s %15s\n", listB[i].c_str(), "...skipped...");
 				nskipped++;
 			}
 			fflush(stdout);
@@ -283,6 +285,8 @@ int main(int argc, char *argv[]) {
 		printf("# %s\n", std::string(70, '-').c_str());
 
 	} else {
+
+		printf("# no clustering : %f\n", opts.tmmax);
 
 		/* process topN hits without clustering */
 		top_hits.assign(hits.begin(), hits.begin() + opts.num);
@@ -375,8 +379,9 @@ void PrintCap(const OPTS &opts) {
 	printf("# %20s : %s\n", "contacts file", opts.con.c_str());
 	printf("# %20s : %s\n", "list file", opts.list.c_str());
 	printf("# %20s : %s\n", "path to templates", opts.dir.c_str());
-	printf("# %20s : %d\n", "threads", opts.nthreads);
+	printf("# %20s : %d\n", "max template size", opts.maxres);
 	printf("# %20s : %.3f\n", "TM-score cut-off", opts.tmmax);
+	printf("# %20s : %d\n", "threads", opts.nthreads);
 
 	printf("# %s\n", std::string(70, '-').c_str());
 
@@ -428,7 +433,7 @@ bool GetOpts(int argc, char *argv[], OPTS &opts) {
 			opts.tmmax = atof(optarg);
 			break;
 		case 'M': /* max template size */
-			opts.tmmax = atof(optarg);
+			opts.maxres = atoi(optarg);
 			break;
 		default:
 			return false;
@@ -585,6 +590,9 @@ MP_RESULT Align(const CMap& mapA, const OPTS& opts,
 	if (B.nRes > 20 && B.nRes < opts.maxres) {
 		CMap mapB = MapFromPDB(B);
 		result = MapAlign::Align(mapA, mapB, B, B, params);
+		if (result.len[0] < 20) {
+			result.sco = {};
+		}
 	}
 
 	return result;
