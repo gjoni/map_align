@@ -697,7 +697,9 @@ double MapAlign::RRCEscore(const SWDATA& swdata, double &E2) {
 		/* get energy if residues are close enough */
 		if (d < 7.8) {
 			E += p * RRCE20RC.GetJij(ta, tb);
-			E2 += p * RRCE20RC.GetJij(Ra->type, Rb->type);
+			if (Ra->type < 20 && Rb->type < 20) {
+				E2 += p * RRCE20RC.GetJij(Ra->type, Rb->type);
+			}
 		}
 
 	}

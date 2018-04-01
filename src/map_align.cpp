@@ -9,6 +9,7 @@
 #include <string>
 #include <algorithm>
 #include <ctime>
+#include <cmath>
 
 #include <omp.h>
 
