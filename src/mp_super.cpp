@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+#include <omp.h>
+
 #include "Chain.h"
 #include "TMalign.h"
 
@@ -47,6 +49,7 @@ int main(int argc, char *argv[]) {
 	 * (1) read the list
 	 */
 	std::vector<Chain> chains;
+	std::vector<std::string> in_ids;
 	{
 		FILE *F = fopen(opts.list.c_str(), "r");
 		if (F == NULL) {
@@ -57,7 +60,6 @@ int main(int argc, char *argv[]) {
 
 		char buf[1024];
 		while (fscanf(F, "%s\n", buf) == 1) {
-			printf("--> %s\n", buf);
 			chains.push_back(Chain(buf));
 		}
 		fclose(F);
@@ -82,9 +84,20 @@ int main(int argc, char *argv[]) {
 
 	PrintCap(opts);
 
+	/* print out processed chains */
+	for (unsigned i = 0; i < chains.size(); i++) {
+		printf("# %u %s - %d aa\n", i + 1, in_ids[i].c_str(), chains[i].nRes);
+	}
+
 	/*
 	 * (3) compare structures
 	 */
+
+	/* TODO:
+	 * 		make mtx[...] 3-dimensional:
+	 * 			1st dim - number of structures
+	 * 			2nd dim - protein size
+	 * 			3rd dim - features */
 	double **mtx = (double**) malloc(opts.dim * sizeof(double*));
 	for (int i = 0; i < opts.dim; i++) {
 		mtx[i] = (double*) calloc(4, sizeof(double));
@@ -97,17 +110,48 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	for (unsigned i = 0; i < chains.size(); i++) {
-		for (unsigned j = i + 1; j < chains.size(); j++) {
-			double tm = TMscore(chains[i], chains[j], opts.dim, mtx);
-			printf("# tm(%u,%u)= %f\n", i + 1, j + 1, tm);
-		}
-	}
+	size_t n = chains.size();
+	size_t nij = n * (n + 1) / 2;
+	double tm_avg = 0.0;
 
-	for (int i = 0; i < opts.dim; i++) {
-		printf("%d %f %f %f %f\n", i + 1, mtx[i][0], mtx[i][1], mtx[i][2],
-				mtx[i][2] > 0 ? mtx[i][3] / mtx[i][2] : 0.0);
+#if defined(_OPENMP)
+#pragma omp parallel for reduction(+:tm_avg) schedule(dynamic) proc_bind(close)
+#endif
+	for (size_t ij = 0; ij < nij; ij++) {
+
+		size_t i, j;
+		{
+			size_t ii = n * (n + 1) / 2 - 1 - ij;
+			size_t K = floor((sqrt(8 * ii + 1) - 1) / 2);
+			i = n - 1 - K;
+			j = ij - n * i + i * (i + 1) / 2;
+		}
+
+		/* exclude self-matches */
+		if (i == j) {
+			continue;
+		}
+
+		/* TODO:
+		 * 		resolve simultaneous writing to same array */
+
+		double tm = TMscore(chains[j], chains[i], opts.dim, mtx);
+		printf("# tm(%lu,%lu)= %f\n", i + 1, j + 1, tm);
+
+		tm_avg += tm;
+
 	}
+#if defined(_OPENMP)
+#pragma omp critical
+#endif
+
+	tm_avg /= (nij - n);
+	printf("# -----\n# average TM-score: %.6f\n# -----\n", tm_avg);
+
+//	for (int i = 0; i < opts.dim; i++) {
+//		printf("%d %f %f %f %f\n", i + 1, mtx[i][0], mtx[i][1], mtx[i][2],
+//				mtx[i][2] > 0 ? mtx[i][3] / mtx[i][2] : 0.0);
+//	}
 
 	{
 		Chain &C = chains[0];
@@ -124,14 +168,6 @@ int main(int argc, char *argv[]) {
 
 //	double tm = TMscore(chains[0], chains[1], opts.dim, mtx);
 //	printf("tm= %f\n", tm);
-
-	/*
-	 * TODO:
-	 * 		1) residue presence frequency
-	 * 		2) TM-aligned frequency
-	 * 		3) pair presence frequency
-	 * 		4) average distance (B-factors)
-	 */
 
 	for (int i = 0; i < opts.dim; i++) {
 		free(mtx[i]);
@@ -161,7 +197,7 @@ void PrintCap(const OPTS &opts) {
 	strftime(buf, 26, "%Y:%m:%d / %H:%M:%S", tm_info);
 
 	printf("# %s\n", std::string(70, '-').c_str());
-	printf("# mp_super - a program to align protein contact maps %19s\n",
+	printf("# mp_super - a program to superimpose protein structures %15s\n",
 	VERSION);
 	printf("# %s\n", std::string(70, '-').c_str());
 
