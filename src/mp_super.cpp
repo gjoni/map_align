@@ -9,6 +9,7 @@
 #include <ctime>
 #include <cassert>
 #include <cmath>
+#include <cstring>
 
 #include <string>
 #include <vector>
@@ -18,7 +19,7 @@
 #include "Chain.h"
 #include "TMalign.h"
 
-#define VERSION "V20180404"
+#define VERSION "V20180405"
 
 struct OPTS {
 	std::string list; /* list of PDB files */
@@ -26,30 +27,48 @@ struct OPTS {
 	std::string bfac; /* B-factors file */
 	int dim; /* number of residues */
 	unsigned N;
+	int nthreads; /* number of threads to use */
 };
 
 bool GetOpts(int argc, char *argv[], OPTS &opts);
 void PrintOpts(const OPTS &opts);
 void PrintCap(const OPTS &opts);
 
-double TMscore(const Chain&, const Chain&, const int, double**);
+/* TODO:
+ * 		make TMscore(..) function return ALISTAT object
+ */
+struct ALISTAT {
+	std::vector<bool> pair;
+	std::vector<double> dist;
+	double t[3];
+	double u[3][3];
+	double tm;
+	int i, j;
+};
+
+ALISTAT TMscore(const Chain&, const Chain&, const int);
 
 int main(int argc, char *argv[]) {
 
 	/*
 	 * (0) process input parameters
 	 */
-	OPTS opts = { "", "", "", -1, 0 };
+	OPTS opts = { "", "", "", -1, 0, 1 };
 	if (!GetOpts(argc, argv, opts)) {
 		PrintOpts(opts);
 		return 1;
 	}
+
+#if defined(_OPENMP)
+	omp_set_num_threads(opts.nthreads);
+#endif
 
 	/*
 	 * (1) read the list
 	 */
 	std::vector<Chain> chains;
 	std::vector<std::string> in_ids;
+	std::vector<std::string> out_ids;
 	{
 		FILE *F = fopen(opts.list.c_str(), "r");
 		if (F == NULL) {
@@ -58,9 +77,17 @@ int main(int argc, char *argv[]) {
 			exit(1);
 		}
 
-		char buf[1024];
-		while (fscanf(F, "%s\n", buf) == 1) {
-			chains.push_back(Chain(buf));
+		char buf[1024], in[1024], out[1024];
+		while (fgets(buf, 1024, F) != NULL) {
+			if (sscanf(buf, "%s %s\n", in, out) == 2) {
+				in_ids.push_back(in);
+				out_ids.push_back(out);
+				chains.push_back(Chain(in));
+			} else if (sscanf(buf, "%s\n", in) == 1) {
+				in_ids.push_back(in);
+				out_ids.push_back("");
+				chains.push_back(Chain(in));
+			}
 		}
 		fclose(F);
 
@@ -86,32 +113,21 @@ int main(int argc, char *argv[]) {
 
 	/* print out processed chains */
 	for (unsigned i = 0; i < chains.size(); i++) {
-		printf("# %u %s - %d aa\n", i + 1, in_ids[i].c_str(), chains[i].nRes);
+		printf("# %u %s - %d aa", i + 1, in_ids[i].c_str(), chains[i].nRes);
+		if (out_ids[i] != "") {
+			printf(" - %s", out_ids[i].c_str());
+		}
+		printf("\n");
 	}
 
 	/*
 	 * (3) compare structures
 	 */
 
-	/* TODO:
-	 * 		make mtx[...] 3-dimensional:
-	 * 			1st dim - number of structures
-	 * 			2nd dim - protein size
-	 * 			3rd dim - features */
-	double **mtx = (double**) malloc(opts.dim * sizeof(double*));
-	for (int i = 0; i < opts.dim; i++) {
-		mtx[i] = (double*) calloc(4, sizeof(double));
-	}
-
-	/* residue presence frequency */
-	for (auto &C : chains) {
-		for (int i = 0; i < C.nRes; i++) {
-			mtx[C.residue[i].seqNum - 1][0] += 1.0;
-		}
-	}
-
+	/* pairwise alignments */
 	size_t n = chains.size();
 	size_t nij = n * (n + 1) / 2;
+	std::vector<ALISTAT> alistat(nij);
 	double tm_avg = 0.0;
 
 #if defined(_OPENMP)
@@ -129,46 +145,99 @@ int main(int argc, char *argv[]) {
 
 		/* exclude self-matches */
 		if (i == j) {
+			alistat[ij].i = alistat[ij].j = 0;
+			alistat[ij].tm = -1.0;
+			double *t = alistat[ij].t;
+			double (*u)[3] = alistat[ij].u;
+			memset(t, 0, 3 * sizeof(double));
+			memset(u, 0, 9 * sizeof(double));
+			u[0][0] = u[1][1] = u[2][2] = 1.0;
 			continue;
 		}
 
-		/* TODO:
-		 * 		resolve simultaneous writing to same array */
-
-		double tm = TMscore(chains[j], chains[i], opts.dim, mtx);
-		printf("# tm(%lu,%lu)= %f\n", i + 1, j + 1, tm);
-
-		tm_avg += tm;
+		/* !!! chain[j] is aligned onto chain[i] !!! */
+		alistat[ij] = TMscore(chains[j], chains[i], opts.dim);
+		alistat[ij].i = j;
+		alistat[ij].j = i;
+		tm_avg += alistat[ij].tm;
 
 	}
-#if defined(_OPENMP)
-#pragma omp critical
-#endif
 
 	tm_avg /= (nij - n);
-	printf("# -----\n# average TM-score: %.6f\n# -----\n", tm_avg);
+	printf("# ----------\n"
+			"# average pairwise TM-score: %.6f\n# ----------\n", tm_avg);
 
-//	for (int i = 0; i < opts.dim; i++) {
-//		printf("%d %f %f %f %f\n", i + 1, mtx[i][0], mtx[i][1], mtx[i][2],
-//				mtx[i][2] > 0 ? mtx[i][3] / mtx[i][2] : 0.0);
-//	}
+	/*
+	 * (4) analyze alignments
+	 */
 
-	{
-		Chain &C = chains[0];
-		for (int i = 0; i < C.nAtoms; i++) {
-			Residue *R = C.atom[i]->residue;
-			double temp = 0.0;
-			if (mtx[R->seqNum - 1][2] > 0) {
-				temp = mtx[R->seqNum - 1][3] / mtx[R->seqNum - 1][2];
-			}
-			C.atom[i]->temp = temp;
-		}
-		C.Save("model.pdb");
+	/* matrix for storing combined results*/
+	double **mtx = (double**) malloc(opts.dim * sizeof(double*));
+	for (int i = 0; i < opts.dim; i++) {
+		mtx[i] = (double*) calloc(3, sizeof(double));
 	}
 
-//	double tm = TMscore(chains[0], chains[1], opts.dim, mtx);
-//	printf("tm= %f\n", tm);
+	/* residue presence frequency */
+	for (auto &C : chains) {
+		for (int i = 0; i < C.nRes; i++) {
+			mtx[C.residue[i].seqNum - 1][0] += 1.0;
+		}
+	}
 
+	/* pair statistics */
+	for (auto &res : alistat) {
+		if (res.i != res.j) {
+			for (int i = 0; i < opts.dim; i++) {
+				mtx[i][1] += res.pair[i];
+				mtx[i][2] += res.dist[i];
+			}
+		}
+	}
+
+	/* normalize */
+	for (int i = 0; i < opts.dim; i++) {
+		mtx[i][2] = mtx[i][1] > 0.5 ? mtx[i][2] / mtx[i][1] : 0.0;
+		if (mtx[i][2] > 20.0) {
+			mtx[i][2] = 20.0;
+		}
+		mtx[i][0] /= n;
+		mtx[i][1] /= (nij - n);
+	}
+
+//	for (int i = 0; i < opts.dim; i++) {
+//		printf("B %4d %7.3f %7.3f %7.3f\n", i + 1, mtx[i][0], mtx[i][1],
+//				mtx[i][2]);
+//	}
+
+	/*
+	 * (5) output
+	 */
+	for (size_t i = 0; i < n; i++) {
+
+		ALISTAT &res = alistat[i];
+
+		if (out_ids[res.i] != "") {
+
+			Chain &C = chains[res.i];
+			for (int i = 0; i < C.nAtoms; i++) {
+				Residue *R = C.atom[i]->residue;
+				double temp = 0.0;
+				if (mtx[R->seqNum - 1][1] > 0) {
+					temp = mtx[R->seqNum - 1][2];
+				}
+				C.atom[i]->temp = temp;
+			}
+			printf("--> %s\n", out_ids[res.i].c_str());
+			C.Transform(res.t, res.u);
+			C.Save(out_ids[res.i].c_str());
+
+		}
+
+	}
+
+	/*
+	 * free
+	 */
 	for (int i = 0; i < opts.dim; i++) {
 		free(mtx[i]);
 	}
@@ -183,8 +252,9 @@ void PrintOpts(const OPTS &opts) {
 	printf("\nUsage:   ./mp_super [-option] [argument]\n\n");
 	printf("Options:  -l list.txt                    - input, required\n");
 	printf("          -n number of residues          - input, optional\n");
-	printf("          -c contacts.txt                - output, optional\n\n");
-	printf("          -b bfactors.txt                - output, optional\n\n");
+	printf("          -c contacts.txt                - output, optional\n");
+	printf("          -b bfactors.txt                - output, optional\n");
+	printf("          -t number of threads             %d\n\n", opts.nthreads);
 
 }
 
@@ -207,6 +277,7 @@ void PrintCap(const OPTS &opts) {
 	printf("# %20s : %d\n", "number of residues", opts.dim);
 	printf("# %20s : %s\n", "contacts file", opts.cont.c_str());
 	printf("# %20s : %s\n", "B-factors file", opts.bfac.c_str());
+	printf("# %20s : %d\n", "threads", opts.nthreads);
 
 	printf("# %s\n", std::string(70, '-').c_str());
 
@@ -215,7 +286,7 @@ void PrintCap(const OPTS &opts) {
 bool GetOpts(int argc, char *argv[], OPTS &opts) {
 
 	char tmp;
-	while ((tmp = getopt(argc, argv, "hl:c:b:n:")) != -1) {
+	while ((tmp = getopt(argc, argv, "hl:c:b:n:t:")) != -1) {
 		switch (tmp) {
 		case 'h': /* help */
 			printf("!!! HELP !!!\n");
@@ -233,6 +304,9 @@ bool GetOpts(int argc, char *argv[], OPTS &opts) {
 		case 'n': /* number of residues */
 			opts.dim = atoi(optarg);
 			break;
+		case 't': /* number of threads */
+			opts.nthreads = atoi(optarg);
+			break;
 		default:
 			return false;
 			break;
@@ -248,9 +322,11 @@ bool GetOpts(int argc, char *argv[], OPTS &opts) {
 
 }
 
-double TMscore(const Chain &A, const Chain &B, const int dim, double **mtx) {
+ALISTAT TMscore(const Chain &A, const Chain &B, const int dim) {
 
-	double tm = 0.0;
+	ALISTAT res = { std::vector<bool>(dim, 0), std::vector<double>(dim, 0.0), {
+			0.0, 0.0, 0.0 }, { { 1.0, 0.0, 0.0 }, { 0.0, 1.0, 0.0 }, { 0.0, 0.0,
+			1.0 } }, 0.0, 0, 0 };
 
 	std::vector<int> flag(dim, 0);
 	std::vector<int> map;
@@ -268,11 +344,12 @@ double TMscore(const Chain &A, const Chain &B, const int dim, double **mtx) {
 		if (flag[i] == 2) {
 			nali++;
 			map.push_back(i);
+			res.pair[i] = true;
 		}
 	}
 
 	if (nali < 5) {
-		return tm;
+		return res;
 	}
 
 	/* allocate memory */
@@ -308,50 +385,40 @@ double TMscore(const Chain &A, const Chain &B, const int dim, double **mtx) {
 		}
 	}
 
-//	for (int i = 0; i < nali; i++) {
-//		printf("%8.3f %8.3f %8.3f    %8.3f %8.3f %8.3f\n", x[i][0], x[i][1],
-//				x[i][2], y[i][0], y[i][1], y[i][2]);
-//	}
-
 	/*
 	 * align
 	 */
 	TMalign TM;
-	tm = TM.GetTMscore(x, y, nali);
+	res.tm = TM.GetTMscore(x, y, nali);
 
 	/* get alignment */
-	int *ali = (int*) malloc(nali * sizeof(int));
-	TM.GetAliX2Y(ali, nali);
-
+//	int *ali = (int*) malloc(nali * sizeof(int));
+//	TM.GetAliX2Y(ali, nali);
 	/* pair presence frequency */
-	for (int i = 0; i < nali; i++) {
-		mtx[map[i]][1] += 1.0;
-		mtx[map[i]][2] += (ali[i] >= 0);
-	}
-
+//	for (int i = 0; i < nali; i++) {
+//		res.pair_tm[map[i]] = (ali[i] >= 0);
+//	}
 	/* transform y[..][3] coordinates */
-	{
-		double t[3], u[3][3];
-		TM.GetTU(t, u);
-		for (int i = 0; i < nali; i++) {
+	TM.GetTU(res.t, res.u);
+	for (int i = 0; i < nali; i++) {
 
-			double x_ = x[i][0];
-			double y_ = x[i][1];
-			double z_ = x[i][2];
+		double x_ = x[i][0];
+		double y_ = x[i][1];
+		double z_ = x[i][2];
 
-			x[i][0] = u[0][0] * x_ + u[0][1] * y_ + u[0][2] * z_ + t[0];
-			x[i][1] = u[1][0] * x_ + u[1][1] * y_ + u[1][2] * z_ + t[1];
-			x[i][2] = u[2][0] * x_ + u[2][1] * y_ + u[2][2] * z_ + t[2];
+		x[i][0] = res.u[0][0] * x_ + res.u[0][1] * y_ + res.u[0][2] * z_
+				+ res.t[0];
+		x[i][1] = res.u[1][0] * x_ + res.u[1][1] * y_ + res.u[1][2] * z_
+				+ res.t[1];
+		x[i][2] = res.u[2][0] * x_ + res.u[2][1] * y_ + res.u[2][2] * z_
+				+ res.t[2];
 
-			x_ = x[i][0] - y[i][0];
-			y_ = x[i][1] - y[i][1];
-			z_ = x[i][2] - y[i][2];
+		x_ = x[i][0] - y[i][0];
+		y_ = x[i][1] - y[i][1];
+		z_ = x[i][2] - y[i][2];
 
-			double d = sqrt(x_ * x_ + y_ * y_ + z_ * z_);
+		res.dist[map[i]] = sqrt(x_ * x_ + y_ * y_ + z_ * z_);
 
-			mtx[map[i]][3] += d;
-
-		}
 	}
 
 	/*
@@ -363,8 +430,8 @@ double TMscore(const Chain &A, const Chain &B, const int dim, double **mtx) {
 	}
 	free(x);
 	free(y);
-	free(ali);
+//	free(ali);
 
-	return tm;
+	return res;
 
 }
