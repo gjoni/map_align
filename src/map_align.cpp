@@ -563,6 +563,7 @@ void SaveMatch(std::string name, const Chain& C, const std::vector<int>& a2b,
 		return;
 	}
 
+	unsigned counter = 0;
 	for (unsigned i = 0; i < a2b.size(); i++) {
 		int idx = a2b[i];
 		if (idx > -1) {
@@ -570,10 +571,13 @@ void SaveMatch(std::string name, const Chain& C, const std::vector<int>& a2b,
 			if (R.N == NULL || R.C == NULL || R.O == NULL) {
 				continue;
 			}
-			SaveAtom(F, R.N, i * 4 + 1, i + 1, seq[i]);
-			SaveAtom(F, R.CA, i * 4 + 2, i + 1, seq[i]);
-			SaveAtom(F, R.C, i * 4 + 3, i + 1, seq[i]);
-			SaveAtom(F, R.O, i * 4 + 4, i + 1, seq[i]);
+			SaveAtom(F, R.N, ++counter, i + 1, seq[i]);
+			SaveAtom(F, R.CA, ++counter, i + 1, seq[i]);
+			SaveAtom(F, R.C, ++counter, i + 1, seq[i]);
+			SaveAtom(F, R.O, ++counter, i + 1, seq[i]);
+			if (R.CB != NULL) {
+				SaveAtom(F, R.CB, ++counter, i + 1, seq[i]);
+			}
 		}
 	}
 

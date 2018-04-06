@@ -43,7 +43,7 @@ public:
 	bool ntFlag; /* N-terminal */
 	bool ctFlag; /* C-terminal */
 
-	Atom *N, *CA, *C, *O; /* pointers to backbone N, CA, C, O */
+	Atom *N, *CA, *C, *O, *CB; /* pointers to backbone N, CA, C, O, CB */
 
 	/* CONSTRUCTORS */
 	Residue(); /* default constructor */
