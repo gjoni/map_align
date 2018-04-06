@@ -18,8 +18,10 @@
 
 #include "Chain.h"
 #include "TMalign.h"
+#include "kdtree.h"
 
 #define VERSION "V20180405"
+#define DMAX 8.0
 
 struct OPTS {
 	std::string list; /* list of PDB files */
@@ -210,7 +212,7 @@ int main(int argc, char *argv[]) {
 //	}
 
 	/*
-	 * (5) output
+	 * (5) output coordinates
 	 */
 	for (size_t i = 0; i < n; i++) {
 
@@ -232,6 +234,96 @@ int main(int argc, char *argv[]) {
 			C.Save(out_ids[res.i].c_str());
 
 		}
+
+	}
+
+	/*
+	 * (6) output contacts
+	 */
+
+	if (opts.cont != "") {
+
+		/* create file for output */
+		FILE *F = fopen(opts.cont.c_str(), "w");
+		if (F == NULL) {
+			printf("Error: cannot open '%s' file for writing (-c)\n",
+					opts.cont.c_str());
+			exit(1);
+		}
+
+		/* resize mtx[][] */
+		for (int i = 0; i < opts.dim; i++) {
+			free(mtx[i]);
+			mtx[i] = (double*) calloc(opts.dim, sizeof(double));
+		}
+
+		/* loop over every chain and save contacts */
+		for (auto &C : chains) {
+
+			bool **fl = (bool**) malloc(opts.dim * sizeof(bool*));
+			for (int i = 0; i < opts.dim; i++) {
+				fl[i] = (bool*) calloc(opts.dim, sizeof(bool));
+			}
+
+			/* find contacting residues */
+			kdres *res;
+			double pos[3];
+			for (int i = 0; i < C.nAtoms; i++) {
+
+				Atom *A = C.atom[i];
+				int a = A->residue->seqNum - 1;
+
+				if (A->type == 'H') { /* exclude hydrogens */
+					continue;
+				}
+
+				res = kd_nearest_range3f(C.kd, A->x, A->y, A->z, DMAX);
+				while (!kd_res_end(res)) {
+
+					Atom *B = *((Atom**) kd_res_item(res, pos));
+
+					if (B->type == 'H') { /* exclude hydrogens */
+						kd_res_next(res);
+						continue;
+					}
+
+					int b = B->residue->seqNum - 1;
+					if (a > b) {
+						fl[a][b] += 1.0;
+						fl[b][a] += 1.0;
+					}
+					kd_res_next(res);
+				}
+				kd_res_free(res);
+
+			}
+
+			/* save residue contacts to mtx[][] */
+			for (int i = 0; i < opts.dim; i++) {
+				for (int j = 0; j < opts.dim; j++) {
+					mtx[i][j] += fl[i][j];
+				}
+			}
+
+			/* free */
+			for (int i = 0; i < opts.dim; i++) {
+				free(fl[i]);
+			}
+			free(fl);
+
+		}
+
+		/* save observed contacts to file */
+		for (int i = 0; i < opts.dim; i++) {
+			for (int j = i + 1; j < opts.dim; j++) {
+				if (mtx[i][j] > 0.5) {
+					fprintf(F, "%d %d 0 %.2f %.3f\n", i + 1, j + 1, DMAX,
+							mtx[i][j] / chains.size());
+				}
+			}
+		}
+
+		fclose(F);
 
 	}
 
