@@ -22,7 +22,7 @@
 
 #define DMAX 5.0
 #define KMIN 3
-#define VERSION "V20180328"
+#define VERSION "V20180409"
 
 /*
  * TODO:
@@ -106,39 +106,31 @@ int main(int argc, char *argv[]) {
 
 	printf("# %s\n", std::string(70, '-').c_str());
 
-	printf("#\n");
-	printf("# %10s %15s %10s %10s %10s %10s %10s %10s %10s %10s %10s "
-			"%10s %5s %5s %5s\n", "TMPLT", "best_params", "Score", "cont_sco",
-			"gap_sco", "max_scoA", "max_scoB", "tot_scoA", "tot_scoB", "E_ali",
-			"E_thread", "Neff", "Nali", "lenA", "lenB");
-	printf("#\n");
 	/*
-	 * (2) process single PDB input file (if any)
+	 * (2) process reference PDB input file (if any)
 	 */
-	/*
-	 if (opts.pdb != "") {
-	 printf("single mode\n");
-	 Chain C(opts.pdb);
-	 CMap mapB(MapFromPDB(C));
-	 std::vector<int> a2b;
-	 MP_RESULT result = MapAlign::Align(mapA, mapB, params);
-	 if (opts.out != "") {
-	 SaveMatch(opts.out, C, a2b, seqA);
-	 }
+	/* read reference PDB */
+	Chain A;
+	if (opts.pdb != "") {
+		A = Chain(opts.pdb);
+	}
 
-	 printf("T %10s %15s", "from_file", result.label.c_str());
-	 for (auto &s : result.sco) {
-	 printf(" %10.3f", s);
-	 }
-	 for (auto &l : result.len) {
-	 printf(" %5d", l);
-	 }
-	 printf("\n");
-
-	 return 0;
-
-	 }
-	 */
+	printf("#\n");
+	if (A.nRes > 0) {
+		printf("# %10s %15s %10s %10s %10s %10s %10s %10s %10s %10s %10s "
+				"%10s %10s %10s %10s %5s %5s %5s %5s %5s\n", "TMPLT",
+				"best_params", "Score", "cont_sco", "gap_sco", "max_scoA",
+				"max_scoB", "tot_scoA", "tot_scoB", "E_ali", "E_thread",
+				"TMscore", "TMscore_MP", "MPscore_TM", "Neff", "Nali", "lenA",
+				"lenB", "lenAM", "lenTM");
+	} else {
+		printf("# %10s %15s %10s %10s %10s %10s %10s %10s %10s %10s %10s "
+				"%10s %5s %5s %5s %5s\n", "TMPLT", "best_params", "Score",
+				"cont_sco", "gap_sco", "max_scoA", "max_scoB", "tot_scoA",
+				"tot_scoB", "E_ali", "E_thread", "Neff", "Nali", "lenA", "lenB",
+				"lenAM");
+	}
+	printf("#\n");
 
 	/*
 	 * (3) process template library
@@ -159,8 +151,6 @@ int main(int argc, char *argv[]) {
 		fclose(F);
 	}
 
-	/* read reference PDB */
-//	Chain A(opts.pdb);
 	/* read PDBs one by one and calculate alignments */
 	std::vector<std::pair<std::string, MP_RESULT> > hits;
 	int nskipped = 0;
@@ -170,8 +160,8 @@ int main(int argc, char *argv[]) {
 #endif
 	for (unsigned i = 0; i < listB.size(); i++) {
 
-//		MP_RESULT result = Align(mapA, A, opts, params, listB[i]);
-		MP_RESULT result = Align(mapA, opts, params, listB[i]);
+		MP_RESULT result = Align(mapA, A, opts, params, listB[i]);
+//		MP_RESULT result = Align(mapA, opts, params, listB[i]);
 
 #if defined(_OPENMP)
 #pragma omp critical
@@ -487,9 +477,9 @@ CMap MapFromPDB(const Chain &C) {
 	}
 
 	/* temp. adjacency matrix */
-	double **mtx = (double**) malloc(C.nRes * sizeof(double*));
+	bool **mtx = (bool**) malloc(C.nRes * sizeof(bool*));
 	for (int i = 0; i < C.nRes; i++) {
-		mtx[i] = (double*) calloc(C.nRes, sizeof(double));
+		mtx[i] = (bool*) calloc(C.nRes, sizeof(bool));
 	}
 
 	/* find neighbors */
@@ -508,8 +498,8 @@ CMap MapFromPDB(const Chain &C) {
 		while (!kd_res_end(res)) {
 			Atom *B = *((Atom**) kd_res_item(res, pos));
 			int b = B->residue - C.residue;
-			mtx[a][b] = 1.0;
-			mtx[b][a] = 1.0;
+			mtx[a][b] = true;
+			mtx[b][a] = true;
 			kd_res_next(res);
 		}
 		kd_res_free(res);
@@ -525,12 +515,11 @@ CMap MapFromPDB(const Chain &C) {
 			if (sep < KMIN) {
 				continue;
 			}
-			if (mtx[i][j] > 1.0e-10) {
+			if (mtx[i][j] == true) {
 				adj[i].push_back(std::make_tuple(j, 1.0, sep));
 			}
 		}
 	}
-	CMap map(adj, seq);
 
 	/* free */
 	for (int i = 0; i < C.nRes; i++) {
@@ -538,7 +527,7 @@ CMap MapFromPDB(const Chain &C) {
 	}
 	free(mtx);
 
-	return map;
+	return CMap(adj, seq);
 
 }
 

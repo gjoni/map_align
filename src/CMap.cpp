@@ -10,7 +10,8 @@
 #include "CMap.h"
 
 CMap::CMap() :
-		seq(""), size(0), left(0), right(0), mleft(0), mright(0) {
+		seq(""), size(0), size_ali(0), has_cont(0), left(0), right(0), mleft(0), mright(
+				0) {
 
 	/* */
 
@@ -24,6 +25,8 @@ CMap & CMap::operator=(const CMap &source) {
 
 	seq = source.seq;
 	size = source.size;
+	size_ali = source.size_ali;
+	has_cont = source.has_cont;
 	left = source.left;
 	right = source.right;
 	mleft = source.mleft;
@@ -35,16 +38,17 @@ CMap & CMap::operator=(const CMap &source) {
 }
 
 CMap::CMap(const CMap &source) :
-		seq(source.seq), size(source.size), left(source.left), right(
-				source.right), mleft(source.mleft), mright(source.mright), edges(
-				source.edges) {
+		seq(source.seq), size(source.size), size_ali(source.size_ali), has_cont(
+				source.has_cont), left(source.left), right(source.right), mleft(
+				source.mleft), mright(source.mright), edges(source.edges) {
 
 	/* */
 
 }
 
 CMap::CMap(const std::string& name, const std::string& sequence) :
-		seq(sequence), size(seq.length()), left(size), right(size) {
+		seq(sequence), size(seq.length()), size_ali(0), has_cont(size, 0), left(
+				size), right(size) {
 
 	FILE *F = fopen(name.c_str(), "r");
 	if (F == NULL) {
@@ -82,6 +86,10 @@ CMap::CMap(const std::string& name, const std::string& sequence) :
 			mtx[a][b] = p;
 			mtx[b][a] = p;
 
+			/* mark residues with contacts */
+			has_cont[a] = true;
+			has_cont[b] = true;
+
 		}
 	}
 
@@ -111,6 +119,10 @@ CMap::CMap(const std::string& name, const std::string& sequence) :
 		if (right[i].size()) {
 			mright.push_back(i);
 		}
+
+		/* count residues with contacts */
+		size_ali += has_cont[i];
+
 	}
 
 	/* free */
@@ -122,7 +134,8 @@ CMap::CMap(const std::string& name, const std::string& sequence) :
 }
 
 CMap::CMap(const AListT& adj, const std::string& sequence) :
-		seq(sequence), size(sequence.length()), left(size), right(size) {
+		seq(sequence), size(sequence.length()), size_ali(0), has_cont(size, 0), left(
+				size), right(size) {
 
 	for (unsigned i = 0; i < size; i++) {
 
@@ -134,6 +147,8 @@ CMap::CMap(const AListT& adj, const std::string& sequence) :
 				right[i].push_back(n);
 				edges[ {i, j}] = {std::get<1>(n), std::get<2>(n)};
 			}
+			has_cont[i] = true;
+			has_cont[j] = true;
 		}
 
 		if (left[i].size()) {
@@ -144,6 +159,10 @@ CMap::CMap(const AListT& adj, const std::string& sequence) :
 			mright.push_back(i);
 		}
 
+	}
+
+	for (unsigned i = 0; i < size; i++) {
+		size_ali += has_cont[i];
 	}
 
 }

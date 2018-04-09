@@ -38,6 +38,13 @@ private:
 	/* dimension (aka sequence length) */
 	unsigned size;
 
+	/* alignable length - number of residues with
+	 * at least one contact */
+	unsigned size_ali;
+
+	/* has_cont[i] is true if residue[i] has at least one contact */
+	std::vector<bool> has_cont;
+
 	/* neighbors to the left and to the right
 	 * of the diagonal */
 	AListT left, right;
