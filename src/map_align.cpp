@@ -44,6 +44,7 @@ struct OPTS {
 	int nthreads; /* number of threads to use */
 	double tmmax; /* TM-score cut-off for cleaning of top matches */
 	int maxres; /* max template size */
+	int niter; /* number of DP iterations */
 };
 
 bool GetOpts(int argc, char *argv[], OPTS &opts);
@@ -78,7 +79,7 @@ int main(int argc, char *argv[]) {
 	/*
 	 * (0) process input parameters
 	 */
-	OPTS opts = { "", "", "", "", "", "", "", 10, 1, 0.8, 1000 };
+	OPTS opts = { "", "", "", "", "", "", "", 10, 1, 0.8, 1000, 10 };
 	if (!GetOpts(argc, argv, opts)) {
 		PrintOpts(opts);
 		return 1;
@@ -88,7 +89,7 @@ int main(int argc, char *argv[]) {
 	omp_set_num_threads(opts.nthreads);
 #endif
 
-	MapAlign::PARAMS params = { -1.0, -0.01, 3, 3 };
+	MapAlign::PARAMS params = { -1.0, -0.01, 3, opts.niter };
 	PrintCap(opts);
 
 	/*
@@ -362,6 +363,7 @@ void PrintOpts(const OPTS &opts) {
 	printf("          -T TM-score cleaning cut-off     %.2f\n", opts.tmmax);
 	printf("          -M max template size             %d\n\n", opts.maxres);
 //	printf("          ********************** misc **********************\n");
+	printf("          -I number of DP iterations       %d\n", opts.niter);
 	printf("          -t number of threads             %d\n", opts.nthreads);
 	printf("\n");
 
@@ -387,6 +389,7 @@ void PrintCap(const OPTS &opts) {
 	printf("# %20s : %s\n", "path to templates", opts.dir.c_str());
 	printf("# %20s : %d\n", "max template size", opts.maxres);
 	printf("# %20s : %.3f\n", "TM-score cut-off", opts.tmmax);
+	printf("# %20s : %d\n", "DP iterations", opts.niter);
 	printf("# %20s : %d\n", "threads", opts.nthreads);
 
 	printf("# %s\n", std::string(70, '-').c_str());
@@ -402,7 +405,7 @@ void PrintCap(const OPTS &opts) {
 bool GetOpts(int argc, char *argv[], OPTS &opts) {
 
 	char tmp;
-	while ((tmp = getopt(argc, argv, "hs:c:p:o:D:L:O:N:v:t:M:T:")) != -1) {
+	while ((tmp = getopt(argc, argv, "hs:c:p:o:D:L:O:N:v:t:M:T:I:")) != -1) {
 		switch (tmp) {
 		case 'h': /* help */
 			printf("!!! HELP !!!\n");
@@ -441,6 +444,9 @@ bool GetOpts(int argc, char *argv[], OPTS &opts) {
 		case 'M': /* max template size */
 			opts.maxres = atoi(optarg);
 			break;
+		case 'I': /* number of DP iterations */
+			opts.niter = atoi(optarg);
+			break;
 		default:
 			return false;
 			break;
@@ -454,6 +460,11 @@ bool GetOpts(int argc, char *argv[], OPTS &opts) {
 
 	if (opts.con == "") {
 		printf("Error: contacts file not specified ('-c')\n");
+		return false;
+	}
+
+	if (opts.niter < 1) {
+		printf("Error: number of iterations must be positive ('-I')\n");
 		return false;
 	}
 

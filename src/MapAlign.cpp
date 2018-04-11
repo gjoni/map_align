@@ -14,7 +14,7 @@
 #include "TMalign.h"
 #include "MSAclass.h"
 
-const RRCE MapAlign::RRCE20RC = RRCE(RRCE::RRCE20RC, 7.8, 4);
+const RRCE MapAlign::RRCE20RC = RRCE();
 
 MapAlign::MapAlign() {
 
