@@ -222,3 +222,9 @@ void CMap::Print() const {
 	 */
 
 }
+
+const std::vector<bool>& CMap::GetContFl() const {
+
+	return has_cont;
+
+}

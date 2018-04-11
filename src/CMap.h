@@ -82,6 +82,8 @@ public:
 	const std::vector<unsigned>& GetLeftMap() const;
 	const std::vector<unsigned>& GetRightMap() const;
 
+	const std::vector<bool> &GetContFl() const;
+
 };
 
 #endif /* CMAP_H_ */

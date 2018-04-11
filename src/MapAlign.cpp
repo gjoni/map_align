@@ -216,7 +216,7 @@ MP_RESULT MapAlign::Assess(const SWDATA& swdata, double gap_e_w) {
 	int a = 0, b = 0;
 	for (unsigned ai = 0; ai < swdata.a2b.size(); ai++) {
 		int bi = swdata.a2b[ai];
-		if (bi > -1 ) {
+		if (bi > -1) {
 			if (a > 0) {
 				double num_gap_a = ((ai - a) - 1);
 				if (num_gap_a > 0) {
@@ -520,10 +520,10 @@ double MapAlign::SW2(SWDATA& swdata, double gap_e) {
 		if (swdata.label[i][j] == 0) {
 			break;
 		} else if (swdata.label[i][j] == 1) {
-			if (swdata.A.has_cont[i - 1]) {
-				swdata.a2b[i - 1] = j - 1;
-				swdata.b2a[j - 1] = i - 1;
-			}
+//			if (swdata.A.has_cont[i - 1]) {
+			swdata.a2b[i - 1] = j - 1;
+			swdata.b2a[j - 1] = i - 1;
+//			}
 			i--;
 			j--;
 		} else if (swdata.label[i][j] == 2) {
@@ -722,6 +722,11 @@ double MapAlign::RRCEscore2(const SWDATA& swdata, double &E2) {
 		/* skip residue if not aligned */
 		int ia = swdata.b2a[a];
 		if (ia < 0) {
+			continue;
+		}
+
+		/* skip residue if it is has no contacts in A */
+		if (!swdata.A.has_cont[ia]) {
 			continue;
 		}
 

@@ -53,7 +53,7 @@ void PrintCap(const OPTS &opts);
 
 CMap MapFromPDB(const Chain &C);
 void SaveMatch(std::string, const Chain&, const std::vector<int>&,
-		const std::string&);
+		const std::vector<bool>&, const std::string&);
 void SaveAtom(FILE *F, Atom *A, int atomNum, int resNum, char type);
 
 MP_RESULT Align(const CMap&, const Chain&, const OPTS&,
@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
 	omp_set_num_threads(opts.nthreads);
 #endif
 
-	MapAlign::PARAMS params = { -1.0, -0.01, 3, 10 };
+	MapAlign::PARAMS params = { -1.0, -0.01, 3, 3 };
 	PrintCap(opts);
 
 	/*
@@ -324,7 +324,8 @@ int main(int argc, char *argv[]) {
 
 		/* save partial matches (if requested by user) */
 		if (opts.prefix != "") {
-			SaveMatch(opts.prefix + id + ".pdb", chains[i], result.a2b, seqA);
+			SaveMatch(opts.prefix + id + ".pdb", chains[i], result.a2b,
+					mapA.GetContFl(), seqA);
 		}
 	}
 
@@ -544,7 +545,7 @@ void SaveAtom(FILE *F, Atom *A, int atomNum, int resNum, char type) {
 }
 
 void SaveMatch(std::string name, const Chain& C, const std::vector<int>& a2b,
-		const std::string& seq) {
+		const std::vector<bool> &has_cont, const std::string& seq) {
 
 	FILE *F = fopen(name.c_str(), "w");
 	if (F == NULL) {
@@ -555,7 +556,7 @@ void SaveMatch(std::string name, const Chain& C, const std::vector<int>& a2b,
 	unsigned counter = 0;
 	for (unsigned i = 0; i < a2b.size(); i++) {
 		int idx = a2b[i];
-		if (idx > -1) {
+		if (idx > -1 /* && has_cont[i] */) {
 			Residue &R = C.residue[idx];
 			if (R.N == NULL || R.C == NULL || R.O == NULL) {
 				continue;
