@@ -73,13 +73,16 @@ private:
 	static void UpdateMTX(SWDATA&, double, int iter);
 
 	/* TMscore of the map_aligned region */
-	static double TMscore(const SWDATA&, unsigned&);
+	static double TMscore(const Chain&, const Chain&, const std::vector<int>&,
+			unsigned&);
 
-	/* TMscore of the tmaligned region with correct a2b[..] mapping */
-	static double TMscore(const SWDATA&, std::vector<int>&);
+	/* TMscore of the TMaligned region returning a2b[..] mapping;
+	 * a2b[..] should have same length as CMap A and be
+	 * initialized with -1's */
+	static double TMscore(const Chain&, const Chain&, std::vector<int>&);
 
-	/* MPscore of the tmaligned region */
-	static double MPscore(const SWDATA&, const std::vector<int>&);
+	/* MPscore of the TMaligned region given a2b[..] mapping */
+	static double MPscore(const CMap&, const CMap&, const std::vector<int>&);
 
 	/* RRCE energy of the map-aligned region */
 	static double RRCEscore(const SWDATA&, double&);

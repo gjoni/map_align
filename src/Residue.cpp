@@ -17,7 +17,8 @@
 
 Residue::Residue() :
 		type(23), seqNum(-1), insCode(' '), atom(NULL), nAtoms(0), chainId(' '), ntFlag(
-				false), ctFlag(false), N(NULL), CA(NULL), C(NULL), O(NULL) {
+				false), ctFlag(false), N(NULL), CA(NULL), C(NULL), O(NULL), CB(
+		NULL) {
 
 	strcpy(name, "UNK");
 
@@ -29,7 +30,7 @@ Residue::Residue(const Residue &source) :
 		type(source.type), seqNum(source.seqNum), insCode(source.insCode), atom(
 		NULL), nAtoms(source.nAtoms), chainId(source.chainId), ntFlag(
 				source.ntFlag), ctFlag(source.ctFlag), N(NULL), CA(NULL), O(
-		NULL) {
+		NULL), CB(NULL) {
 
 	assert(nAtoms > 0); /* pedantic check */
 
@@ -41,7 +42,7 @@ Residue::Residue(const Residue &source) :
 		atom[i].residue = this;
 	}
 
-	SetBBAtoms(); /* N, CA, C, O are pointers - they need  to be reinitialized */
+	SetBBAtoms(); /* N, CA, C, O, CB are pointers - they need  to be reinitialized */
 
 	memcpy(centroid, source.centroid, 3 * sizeof(double));
 
@@ -51,7 +52,7 @@ Residue::Residue(const std::vector<AtomRecord>& source) :
 		seqNum(source[0].resNum), insCode(source[0].insCode), atom(NULL), nAtoms(
 				source.size()), chainId(source[0].chainId), ntFlag(false), ctFlag(
 				false), N(NULL), CA(NULL), C(
-		NULL), O(NULL) {
+		NULL), O(NULL), CB(NULL) {
 
 	assert(nAtoms > 0); /* pedantic check */
 
@@ -65,7 +66,7 @@ Residue::Residue(const std::vector<AtomRecord>& source) :
 		idx++;
 	}
 
-	SetBBAtoms(); /* N, CA, C , O are pointers - they need to be reinitialized */
+	SetBBAtoms(); /* N, CA, C, O, CB are pointers - they need to be reinitialized */
 
 	type = SetType(name);
 
@@ -78,7 +79,7 @@ Residue::Residue(std::vector<AtomRecord>::iterator begin_it,
 		seqNum(begin_it->resNum), insCode(begin_it->insCode), atom(NULL), nAtoms(
 				end_it - begin_it + 1), chainId(begin_it->chainId), ntFlag(
 				false), ctFlag(false), N(NULL), CA(
-		NULL), C(NULL), O(NULL) {
+		NULL), C(NULL), O(NULL), CB(NULL) {
 
 	assert(nAtoms > 0); /* pedantic check */
 
@@ -138,7 +139,7 @@ Residue::Residue(std::vector<AtomRecord>::iterator begin_it,
 
 	}
 
-	SetBBAtoms(); /* N, CA, C, O are pointers - they need to be reinitialized */
+	SetBBAtoms(); /* N, CA, C, O, CB are pointers - they need to be reinitialized */
 
 	type = SetType(name);
 
@@ -182,7 +183,7 @@ Residue & Residue::operator =(const Residue & source) {
 
 int Residue::SetBBAtoms() {
 
-	bool flN = false, flCA = false, flC = false, flO = false;
+	bool flN = false, flCA = false, flC = false, flO = false, flCB = false;
 
 	for (int i = 0; i < nAtoms; i++) {
 		if (strcmp(atom[i].name, "N") == 0) {
@@ -191,6 +192,9 @@ int Residue::SetBBAtoms() {
 		} else if (strcmp(atom[i].name, "CA") == 0) {
 			CA = &(atom[i]);
 			flCA = true;
+		} else if (strcmp(atom[i].name, "CB") == 0) {
+			CB = &(atom[i]);
+			flCB = true;
 		} else if (strcmp(atom[i].name, "C") == 0) {
 			C = &(atom[i]);
 			flC = true;
@@ -209,7 +213,7 @@ int Residue::SetBBAtoms() {
 		}
 	}
 
-	int n = flN + flCA + flC + flO;
+	int n = flN + flCA + flC + flO + flCB;
 
 	return n;
 

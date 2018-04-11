@@ -14,7 +14,7 @@
 #include "TMalign.h"
 #include "MSAclass.h"
 
-const RRCE MapAlign::RRCE20RC = RRCE(RRCE::RRCE20RC, 7.8, 4);
+const RRCE MapAlign::RRCE20RC = RRCE();
 
 MapAlign::MapAlign() {
 
@@ -208,9 +208,7 @@ MP_RESULT MapAlign::Assess(const SWDATA& swdata, double gap_e_w) {
 
 	int naligned = 0;
 	for (auto &a : swdata.a2b) {
-		if (a > -1) {
-			naligned++;
-		}
+		naligned += (a > -1);
 	}
 
 	/* gap penalty score */
@@ -245,10 +243,7 @@ MP_RESULT MapAlign::Assess(const SWDATA& swdata, double gap_e_w) {
 	scores.len.push_back(naligned);
 	scores.len.push_back(swdata.A.size);
 	scores.len.push_back(swdata.B.size);
-
-	/*
-	 * TM-align scores
-	 */
+	scores.len.push_back(swdata.A.size_ali);
 
 	/*
 	 * RRCE energy
@@ -258,21 +253,6 @@ MP_RESULT MapAlign::Assess(const SWDATA& swdata, double gap_e_w) {
 	scores.sco.push_back(E + E2);
 	E = RRCEscore2(swdata, E2);
 	scores.sco.push_back(E + E2);
-
-	/* (1) between tmaligned PDBs */
-//	std::vector<int> a2b;
-//	scores.sco.push_back(TMscore(swdata, a2b));
-
-	/* (2) between map_aligned PDBs */
-//	unsigned dim;
-//	scores.sco.push_back(TMscore(swdata, dim));
-//	scores.len.push_back(dim);
-
-	/* (3) MP-score for tmaligned region */
-	//	scores.sco.push_back(MPscore(swdata, a2b));
-//	scores.sco.push_back(0.0);
-//	scores.sco.push_back(0.0);
-//	scores.sco.push_back(0.0);
 
 	return scores;
 
@@ -340,7 +320,31 @@ MP_RESULT MapAlign::Align(const CMap& A, const CMap& B, const Chain &PA,
 	}
 
 	/*
-	 * (3) free
+	 * (3) if PA chain is not empty, do benchmarking on the best hit
+	 */
+	if (PA.nRes > 0) {
+
+//		for (auto &a : result_best.a2b) {
+//			printf(" %d", a);
+//		}
+//		printf("\n");
+
+		/* (1) between tmaligned PDBs */
+		std::vector<int> a2b(swdata.A.size, -1);
+		result_best.sco.push_back(TMscore(swdata.PA, swdata.PB, a2b));
+
+		/* (2) between map_aligned PDBs */
+		unsigned dim;
+		result_best.sco.push_back(TMscore(swdata.PA, swdata.PB, a2b, dim));
+		result_best.len.push_back(dim);
+
+		/* (3) MP-score for tmaligned region */
+		result_best.sco.push_back(MPscore(swdata.A, swdata.B, a2b));
+
+	}
+
+	/*
+	 * (4) free
 	 */
 	Free(&swdata);
 
@@ -516,8 +520,10 @@ double MapAlign::SW2(SWDATA& swdata, double gap_e) {
 		if (swdata.label[i][j] == 0) {
 			break;
 		} else if (swdata.label[i][j] == 1) {
+//			if (swdata.A.has_cont[i - 1]) {
 			swdata.a2b[i - 1] = j - 1;
 			swdata.b2a[j - 1] = i - 1;
+//			}
 			i--;
 			j--;
 		} else if (swdata.label[i][j] == 2) {
@@ -543,23 +549,20 @@ double MapAlign::MaxScore(const CMap& A) {
 
 }
 
-double MapAlign::TMscore(const SWDATA& swdata, std::vector<int>& a2b) {
+double MapAlign::TMscore(const Chain &A, const Chain &B,
+		std::vector<int>& a2b) {
 
 	double tm = 0.0;
 
-	a2b.clear();
-
 	/* regular TMalign - normalization by length of A */
 	TMalign TM;
-	tm = TM.GetTMscore(swdata.PA.ca_trace, swdata.PB.ca_trace, swdata.PA.nRes,
-			swdata.PB.nRes);
+	tm = TM.GetTMscore(A.ca_trace, B.ca_trace, A.nRes, B.nRes);
 	/* get alignment */
-	int *a2b_tmp = (int*) malloc(swdata.PA.nRes * sizeof(int));
-	TM.GetAliX2Y(a2b_tmp, swdata.PA.nRes);
+	int *a2b_tmp = (int*) malloc(A.nRes * sizeof(int));
+	TM.GetAliX2Y(a2b_tmp, A.nRes);
 
 	/* make a2b[..] mapping consistent with PDB */
-	a2b.resize(swdata.A.size, -1);
-	for (int i = 0; i < swdata.PA.nRes; i++) {
+	for (int i = 0; i < A.nRes; i++) {
 
 		/* skip residue if it is not tmaligned */
 		if (a2b_tmp[i] < 0) {
@@ -568,13 +571,13 @@ double MapAlign::TMscore(const SWDATA& swdata, std::vector<int>& a2b) {
 
 		/* skip PDB residues with negative sequence numbers -
 		 * these are not present in the reference sequence */
-		Residue *R = &(swdata.PA.residue[i]);
+		Residue *R = &(A.residue[i]);
 		if (R->seqNum < 0) {
 			continue;
 		}
 
 		/* re-map */
-		assert(R->seqNum < (int ) swdata.A.size);
+		assert(R->seqNum < (int ) a2b.size());
 		a2b[R->seqNum] = a2b_tmp[i];
 
 	}
@@ -585,18 +588,19 @@ double MapAlign::TMscore(const SWDATA& swdata, std::vector<int>& a2b) {
 
 }
 
-double MapAlign::MPscore(const SWDATA& swdata, const std::vector<int>& a2b) {
+double MapAlign::MPscore(const CMap &A, const CMap &B,
+		const std::vector<int>& a2b) {
 
 	double mp = 0.0;
 
-	for (auto &c : swdata.A.edges) {
+	for (auto &c : A.edges) {
 		int i = a2b[c.first.first];
 		int j = a2b[c.first.second];
 		if (i < 0 || j < 0) {
 			continue;
 		}
-		EListT::const_iterator it = swdata.B.edges.find( { i, j });
-		if (it != swdata.B.edges.end()) {
+		EListT::const_iterator it = B.edges.find( { i, j });
+		if (it != B.edges.end()) {
 			mp += c.second.first * it->second.first
 					* sepw(min(c.second.second, it->second.second));
 		}
@@ -606,10 +610,11 @@ double MapAlign::MPscore(const SWDATA& swdata, const std::vector<int>& a2b) {
 
 }
 
-double MapAlign::TMscore(const SWDATA& swdata, unsigned& dim) {
+double MapAlign::TMscore(const Chain &A, const Chain &B,
+		const std::vector<int> &a2b, unsigned& dim) {
 
 	/* allocate memory */
-	dim = swdata.a2b.size();
+	dim = a2b.size();
 	double **x = (double**) malloc(dim * sizeof(double*));
 	double **y = (double**) malloc(dim * sizeof(double*));
 	for (unsigned i = 0; i < dim; i++) {
@@ -619,15 +624,13 @@ double MapAlign::TMscore(const SWDATA& swdata, unsigned& dim) {
 
 	/* get aligned residues */
 	dim = 0;
-	const Chain &A = swdata.PA;
-	const Chain &B = swdata.PB;
-	for (unsigned i = 0; i < swdata.a2b.size(); i++) {
+	for (unsigned i = 0; i < a2b.size(); i++) {
 
 		/* get residue in A by its number in PDB
 		 * !!! PDB and contact map indices should be consistent !!! */
 		Residue *R = A.GetResidue(i);
 
-		int idxb = swdata.a2b[i];
+		int idxb = a2b[i];
 		if (R != NULL && idxb > -1) {
 
 			x[dim][0] = R->CA->x;
@@ -652,7 +655,7 @@ double MapAlign::TMscore(const SWDATA& swdata, unsigned& dim) {
 	}
 
 	/* free */
-	for (unsigned i = 0; i < swdata.a2b.size(); i++) {
+	for (unsigned i = 0; i < a2b.size(); i++) {
 		free(x[i]);
 		free(y[i]);
 	}
@@ -722,6 +725,11 @@ double MapAlign::RRCEscore2(const SWDATA& swdata, double &E2) {
 			continue;
 		}
 
+		/* skip residue if it is has no contacts in A */
+		if (!swdata.A.has_cont[ia]) {
+			continue;
+		}
+
 		/* skip if residue type is not standard */
 		unsigned ta = MSAclass::aatoi(swdata.A.seq[ia]);
 		if (ta >= 20) {
@@ -759,7 +767,8 @@ double MapAlign::RRCEscore2(const SWDATA& swdata, double &E2) {
 			}
 
 			E += RRCE20RC.GetJij(ta, tb);
-			if (swdata.PB.residue[a].type < 20 && swdata.PB.residue[b].type < 20) {
+			if (swdata.PB.residue[a].type < 20
+					&& swdata.PB.residue[b].type < 20) {
 				E2 += RRCE20RC.GetJij(swdata.PB.residue[a].type,
 						swdata.PB.residue[b].type);
 			}

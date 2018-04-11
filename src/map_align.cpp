@@ -22,7 +22,7 @@
 
 #define DMAX 5.0
 #define KMIN 3
-#define VERSION "V20180328"
+#define VERSION "V20180409"
 
 /*
  * TODO:
@@ -44,6 +44,7 @@ struct OPTS {
 	int nthreads; /* number of threads to use */
 	double tmmax; /* TM-score cut-off for cleaning of top matches */
 	int maxres; /* max template size */
+	int niter; /* number of DP iterations */
 };
 
 bool GetOpts(int argc, char *argv[], OPTS &opts);
@@ -53,7 +54,7 @@ void PrintCap(const OPTS &opts);
 
 CMap MapFromPDB(const Chain &C);
 void SaveMatch(std::string, const Chain&, const std::vector<int>&,
-		const std::string&);
+		const std::vector<bool>&, const std::string&);
 void SaveAtom(FILE *F, Atom *A, int atomNum, int resNum, char type);
 
 MP_RESULT Align(const CMap&, const Chain&, const OPTS&,
@@ -78,7 +79,7 @@ int main(int argc, char *argv[]) {
 	/*
 	 * (0) process input parameters
 	 */
-	OPTS opts = { "", "", "", "", "", "", "", 10, 1, 0.8, 1000 };
+	OPTS opts = { "", "", "", "", "", "", "", 10, 1, 0.8, 1000, 10 };
 	if (!GetOpts(argc, argv, opts)) {
 		PrintOpts(opts);
 		return 1;
@@ -88,7 +89,7 @@ int main(int argc, char *argv[]) {
 	omp_set_num_threads(opts.nthreads);
 #endif
 
-	MapAlign::PARAMS params = { -1.0, -0.01, 3, 10 };
+	MapAlign::PARAMS params = { -1.0, -0.01, 3, opts.niter };
 	PrintCap(opts);
 
 	/*
@@ -106,39 +107,31 @@ int main(int argc, char *argv[]) {
 
 	printf("# %s\n", std::string(70, '-').c_str());
 
-	printf("#\n");
-	printf("# %10s %15s %10s %10s %10s %10s %10s %10s %10s %10s %10s "
-			"%10s %5s %5s %5s\n", "TMPLT", "best_params", "Score", "cont_sco",
-			"gap_sco", "max_scoA", "max_scoB", "tot_scoA", "tot_scoB", "E_ali",
-			"E_thread", "Neff", "Nali", "lenA", "lenB");
-	printf("#\n");
 	/*
-	 * (2) process single PDB input file (if any)
+	 * (2) process reference PDB input file (if any)
 	 */
-	/*
-	 if (opts.pdb != "") {
-	 printf("single mode\n");
-	 Chain C(opts.pdb);
-	 CMap mapB(MapFromPDB(C));
-	 std::vector<int> a2b;
-	 MP_RESULT result = MapAlign::Align(mapA, mapB, params);
-	 if (opts.out != "") {
-	 SaveMatch(opts.out, C, a2b, seqA);
-	 }
+	/* read reference PDB */
+	Chain A;
+	if (opts.pdb != "") {
+		A = Chain(opts.pdb);
+	}
 
-	 printf("T %10s %15s", "from_file", result.label.c_str());
-	 for (auto &s : result.sco) {
-	 printf(" %10.3f", s);
-	 }
-	 for (auto &l : result.len) {
-	 printf(" %5d", l);
-	 }
-	 printf("\n");
-
-	 return 0;
-
-	 }
-	 */
+	printf("#\n");
+	if (A.nRes > 0) {
+		printf("# %10s %15s %10s %10s %10s %10s %10s %10s %10s %10s %10s "
+				"%10s %10s %10s %10s %5s %5s %5s %5s %5s\n", "TMPLT",
+				"best_params", "Score", "cont_sco", "gap_sco", "max_scoA",
+				"max_scoB", "tot_scoA", "tot_scoB", "E_ali", "E_thread",
+				"TMscore", "TMscore_MP", "MPscore_TM", "Neff", "Nali", "lenA",
+				"lenB", "lenAM", "lenTM");
+	} else {
+		printf("# %10s %15s %10s %10s %10s %10s %10s %10s %10s %10s %10s "
+				"%10s %5s %5s %5s %5s\n", "TMPLT", "best_params", "Score",
+				"cont_sco", "gap_sco", "max_scoA", "max_scoB", "tot_scoA",
+				"tot_scoB", "E_ali", "E_thread", "Neff", "Nali", "lenA", "lenB",
+				"lenAM");
+	}
+	printf("#\n");
 
 	/*
 	 * (3) process template library
@@ -159,8 +152,6 @@ int main(int argc, char *argv[]) {
 		fclose(F);
 	}
 
-	/* read reference PDB */
-//	Chain A(opts.pdb);
 	/* read PDBs one by one and calculate alignments */
 	std::vector<std::pair<std::string, MP_RESULT> > hits;
 	int nskipped = 0;
@@ -170,8 +161,8 @@ int main(int argc, char *argv[]) {
 #endif
 	for (unsigned i = 0; i < listB.size(); i++) {
 
-//		MP_RESULT result = Align(mapA, A, opts, params, listB[i]);
-		MP_RESULT result = Align(mapA, opts, params, listB[i]);
+		MP_RESULT result = Align(mapA, A, opts, params, listB[i]);
+//		MP_RESULT result = Align(mapA, opts, params, listB[i]);
 
 #if defined(_OPENMP)
 #pragma omp critical
@@ -334,7 +325,8 @@ int main(int argc, char *argv[]) {
 
 		/* save partial matches (if requested by user) */
 		if (opts.prefix != "") {
-			SaveMatch(opts.prefix + id + ".pdb", chains[i], result.a2b, seqA);
+			SaveMatch(opts.prefix + id + ".pdb", chains[i], result.a2b,
+					mapA.GetContFl(), seqA);
 		}
 	}
 
@@ -371,6 +363,7 @@ void PrintOpts(const OPTS &opts) {
 	printf("          -T TM-score cleaning cut-off     %.2f\n", opts.tmmax);
 	printf("          -M max template size             %d\n\n", opts.maxres);
 //	printf("          ********************** misc **********************\n");
+	printf("          -I number of DP iterations       %d\n", opts.niter);
 	printf("          -t number of threads             %d\n", opts.nthreads);
 	printf("\n");
 
@@ -396,6 +389,7 @@ void PrintCap(const OPTS &opts) {
 	printf("# %20s : %s\n", "path to templates", opts.dir.c_str());
 	printf("# %20s : %d\n", "max template size", opts.maxres);
 	printf("# %20s : %.3f\n", "TM-score cut-off", opts.tmmax);
+	printf("# %20s : %d\n", "DP iterations", opts.niter);
 	printf("# %20s : %d\n", "threads", opts.nthreads);
 
 	printf("# %s\n", std::string(70, '-').c_str());
@@ -411,7 +405,7 @@ void PrintCap(const OPTS &opts) {
 bool GetOpts(int argc, char *argv[], OPTS &opts) {
 
 	char tmp;
-	while ((tmp = getopt(argc, argv, "hs:c:p:o:D:L:O:N:v:t:M:T:")) != -1) {
+	while ((tmp = getopt(argc, argv, "hs:c:p:o:D:L:O:N:v:t:M:T:I:")) != -1) {
 		switch (tmp) {
 		case 'h': /* help */
 			printf("!!! HELP !!!\n");
@@ -450,6 +444,9 @@ bool GetOpts(int argc, char *argv[], OPTS &opts) {
 		case 'M': /* max template size */
 			opts.maxres = atoi(optarg);
 			break;
+		case 'I': /* number of DP iterations */
+			opts.niter = atoi(optarg);
+			break;
 		default:
 			return false;
 			break;
@@ -463,6 +460,11 @@ bool GetOpts(int argc, char *argv[], OPTS &opts) {
 
 	if (opts.con == "") {
 		printf("Error: contacts file not specified ('-c')\n");
+		return false;
+	}
+
+	if (opts.niter < 1) {
+		printf("Error: number of iterations must be positive ('-I')\n");
 		return false;
 	}
 
@@ -487,9 +489,9 @@ CMap MapFromPDB(const Chain &C) {
 	}
 
 	/* temp. adjacency matrix */
-	double **mtx = (double**) malloc(C.nRes * sizeof(double*));
+	bool **mtx = (bool**) malloc(C.nRes * sizeof(bool*));
 	for (int i = 0; i < C.nRes; i++) {
-		mtx[i] = (double*) calloc(C.nRes, sizeof(double));
+		mtx[i] = (bool*) calloc(C.nRes, sizeof(bool));
 	}
 
 	/* find neighbors */
@@ -508,8 +510,8 @@ CMap MapFromPDB(const Chain &C) {
 		while (!kd_res_end(res)) {
 			Atom *B = *((Atom**) kd_res_item(res, pos));
 			int b = B->residue - C.residue;
-			mtx[a][b] = 1.0;
-			mtx[b][a] = 1.0;
+			mtx[a][b] = true;
+			mtx[b][a] = true;
 			kd_res_next(res);
 		}
 		kd_res_free(res);
@@ -525,12 +527,11 @@ CMap MapFromPDB(const Chain &C) {
 			if (sep < KMIN) {
 				continue;
 			}
-			if (mtx[i][j] > 1.0e-10) {
+			if (mtx[i][j] == true) {
 				adj[i].push_back(std::make_tuple(j, 1.0, sep));
 			}
 		}
 	}
-	CMap map(adj, seq);
 
 	/* free */
 	for (int i = 0; i < C.nRes; i++) {
@@ -538,7 +539,7 @@ CMap MapFromPDB(const Chain &C) {
 	}
 	free(mtx);
 
-	return map;
+	return CMap(adj, seq);
 
 }
 
@@ -555,7 +556,7 @@ void SaveAtom(FILE *F, Atom *A, int atomNum, int resNum, char type) {
 }
 
 void SaveMatch(std::string name, const Chain& C, const std::vector<int>& a2b,
-		const std::string& seq) {
+		const std::vector<bool> &has_cont, const std::string& seq) {
 
 	FILE *F = fopen(name.c_str(), "w");
 	if (F == NULL) {
@@ -563,17 +564,21 @@ void SaveMatch(std::string name, const Chain& C, const std::vector<int>& a2b,
 		return;
 	}
 
+	unsigned counter = 0;
 	for (unsigned i = 0; i < a2b.size(); i++) {
 		int idx = a2b[i];
-		if (idx > -1) {
+		if (idx > -1 /* && has_cont[i] */) {
 			Residue &R = C.residue[idx];
 			if (R.N == NULL || R.C == NULL || R.O == NULL) {
 				continue;
 			}
-			SaveAtom(F, R.N, i * 4 + 1, i + 1, seq[i]);
-			SaveAtom(F, R.CA, i * 4 + 2, i + 1, seq[i]);
-			SaveAtom(F, R.C, i * 4 + 3, i + 1, seq[i]);
-			SaveAtom(F, R.O, i * 4 + 4, i + 1, seq[i]);
+			SaveAtom(F, R.N, ++counter, i + 1, seq[i]);
+			SaveAtom(F, R.CA, ++counter, i + 1, seq[i]);
+			SaveAtom(F, R.C, ++counter, i + 1, seq[i]);
+			SaveAtom(F, R.O, ++counter, i + 1, seq[i]);
+			if (R.CB != NULL) {
+				SaveAtom(F, R.CB, ++counter, i + 1, seq[i]);
+			}
 		}
 	}
 
