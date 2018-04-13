@@ -49,9 +49,7 @@ List of templates is a text file with one entry per line. IDs of the templates a
 ```
 /path/to/template1.pdb ID1
 /path/to/template2.pdb ID2
-
 ...
-
 ```
 
 ##### Contact map format
@@ -70,12 +68,12 @@ i  j  d1  d2  p
 
 Align a contact map to a library of templates (simplest call):
 ```
-$ ./map_align -s example/T0806.fas -c example/T0806.con -D example -L example/list
+$ ./map_align -s example/T0806.fas -c example/T0806.con -L example/list
 ```
 
 Align a contact map to a library of templates saving top 5 hits at TM-score=70% identity cut-off and running the program on 4 cores:
 ```
-$ ./map_align -s example/T0806.fas -c example/T0806.con -D example -L example/list -N 5 -T 0.70 -t 4 -O example/T0806.
+$ ./map_align -s example/T0806.fas -c example/T0806.con -L example/list -N 5 -T 0.70 -t 4 -O example/T0806.
 ```
 
 
