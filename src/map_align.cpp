@@ -22,7 +22,7 @@
 
 #define DMAX 5.0
 #define KMIN 3
-#define VERSION "V20180409"
+#define VERSION "V20180413"
 
 /*
  * TODO:
@@ -67,11 +67,11 @@ MP_RESULT Align(const CMap&, const OPTS&, const MapAlign::PARAMS& params,
 double TMscore(const Chain&, const Chain&, const std::vector<int>&,
 		const std::vector<int>&);
 
-bool compare(const std::pair<std::string, MP_RESULT> &a,
-		const std::pair<std::string, MP_RESULT> &b) {
+bool compare(const std::tuple<std::string, std::string, MP_RESULT> &a,
+		const std::tuple<std::string, std::string, MP_RESULT> &b) {
 	//	return (a.second.sco[0] + a.second.sco[1]
 	//			> b.second.sco[0] + b.second.sco[1]);
-	return (a.second.score > b.second.score);
+	return (std::get<2>(a).score > std::get<2>(b).score);
 }
 
 int main(int argc, char *argv[]) {
@@ -138,22 +138,22 @@ int main(int argc, char *argv[]) {
 	 */
 
 	/* read IDs */
-	std::vector<std::string> listB;
+	std::vector<std::pair<std::string, std::string> > listB;
 	{
 		FILE *F = fopen(opts.list.c_str(), "r");
 		if (F == NULL) {
 			printf("Error: cannot open list file '%s'\n", opts.list.c_str());
 			return 1;
 		}
-		char id[1024];
-		while (fscanf(F, "%s\n", id) == 1) {
-			listB.push_back(id);
+		char name[1024], id[1024];
+		while (fscanf(F, "%s %s\n", name, id) == 2) {
+			listB.push_back( { name, id });
 		}
 		fclose(F);
 	}
 
 	/* read PDBs one by one and calculate alignments */
-	std::vector<std::pair<std::string, MP_RESULT> > hits;
+	std::vector<std::tuple<std::string, std::string, MP_RESULT> > hits;
 	int nskipped = 0;
 
 #if defined(_OPENMP)
@@ -161,7 +161,7 @@ int main(int argc, char *argv[]) {
 #endif
 	for (unsigned i = 0; i < listB.size(); i++) {
 
-		MP_RESULT result = Align(mapA, A, opts, params, listB[i]);
+		MP_RESULT result = Align(mapA, A, opts, params, listB[i].first);
 //		MP_RESULT result = Align(mapA, opts, params, listB[i]);
 
 #if defined(_OPENMP)
@@ -205,7 +205,8 @@ int main(int argc, char *argv[]) {
 //				result.score = 1.0 / (1.0 + exp(-s));
 				result.score = s;
 
-				printf("M %10s %15s", listB[i].c_str(), result.label.c_str());
+				printf("M %10s %15s", listB[i].second.c_str(),
+						result.label.c_str());
 				printf(" %10.3f", result.score);
 				for (auto &s : result.sco) {
 					printf(" %10.3f", s);
@@ -215,10 +216,13 @@ int main(int argc, char *argv[]) {
 				}
 				printf("\n");
 
-				hits.push_back(std::make_pair(listB[i], result));
+				hits.push_back(
+						std::make_tuple(listB[i].first, listB[i].second,
+								result));
 
 			} else {
-				printf("S %10s %15s\n", listB[i].c_str(), "...skipped...");
+				printf("S %10s %15s\n", listB[i].second.c_str(),
+						"...skipped...");
 				nskipped++;
 			}
 			fflush(stdout);
@@ -241,7 +245,7 @@ int main(int argc, char *argv[]) {
 
 	/* store info about top hits in these vectors */
 	std::vector<Chain> chains;
-	std::vector<std::pair<std::string, MP_RESULT> > top_hits;
+	std::vector<std::tuple<std::string, std::string, MP_RESULT> > top_hits;
 
 	/*
 	 * (4a) clean based on TM-score
@@ -256,15 +260,15 @@ int main(int argc, char *argv[]) {
 		for (auto &result : hits) {
 
 			/* load template */
-			Chain B(opts.dir + "/" + result.first.c_str() + ".pdb");
-			std::vector<int> &b2ref = result.second.a2b;
+			Chain B(std::get<0>(result));
+			std::vector<int> &b2ref = std::get<2>(result).a2b;
 
 			/* check whether current template is similar
 			 * to any of the already processed templates */
 			bool fl = 1;
 			for (unsigned i = 0; i < chains.size(); i++) {
 				Chain &C = chains[i];
-				std::vector<int> &c2ref = top_hits[i].second.a2b;
+				std::vector<int> &c2ref = std::get<2>(top_hits[i]).a2b;
 				double tm = TMscore(B, C, b2ref, c2ref);
 				if (tm > opts.tmmax) {
 					fl = 0;
@@ -297,8 +301,8 @@ int main(int argc, char *argv[]) {
 		/* process topN hits without clustering */
 		top_hits.assign(hits.begin(), hits.begin() + opts.num);
 		for (auto &result : top_hits) {
-			std::string &id = result.first;
-			chains.push_back(Chain(opts.dir + "/" + id.c_str() + ".pdb"));
+//			std::string &id = result.first;
+			chains.push_back(Chain(std::get<0>(result)));
 		}
 
 	}
@@ -311,8 +315,8 @@ int main(int argc, char *argv[]) {
 	opts.num = top_hits.size() < opts.num ? top_hits.size() : opts.num;
 
 	for (unsigned i = 0; i < opts.num; i++) {
-		std::string &id = top_hits[i].first;
-		MP_RESULT &result = top_hits[i].second;
+		std::string &id = std::get<1>(top_hits[i]);
+		MP_RESULT &result = std::get<2>(top_hits[i]);
 		printf("T %10s %15s", id.c_str(), result.label.c_str());
 		printf(" %10.3f", result.score);
 		for (auto &s : result.sco) {
@@ -356,7 +360,7 @@ void PrintOpts(const OPTS &opts) {
 //	printf("          -o match.pdb                   - output, optional\n\n");
 //	printf("                                  OR                        \n");
 //	printf("          ************** library of templates **************\n");
-	printf("          -D path to templates           - input, required\n");
+//	printf("          -D path to templates           - input, required\n");
 	printf("          -L list.txt with template IDs  - input, required\n");
 	printf("          -O prefix for saving top hits  - output, optional\n");
 	printf("          -N number of top hits to save    %u\n", opts.num);
@@ -386,7 +390,7 @@ void PrintCap(const OPTS &opts) {
 	printf("# %20s : %s\n", "sequence file", opts.seq.c_str());
 	printf("# %20s : %s\n", "contacts file", opts.con.c_str());
 	printf("# %20s : %s\n", "list file", opts.list.c_str());
-	printf("# %20s : %s\n", "path to templates", opts.dir.c_str());
+//	printf("# %20s : %s\n", "path to templates", opts.dir.c_str());
 	printf("# %20s : %d\n", "max template size", opts.maxres);
 	printf("# %20s : %.3f\n", "TM-score cut-off", opts.tmmax);
 	printf("# %20s : %d\n", "DP iterations", opts.niter);
@@ -589,8 +593,8 @@ void SaveMatch(std::string name, const Chain& C, const std::vector<int>& a2b,
 MP_RESULT Align(const CMap& mapA, const Chain& A, const OPTS& opts,
 		const MapAlign::PARAMS& params, const std::string& id) {
 
-	std::string name = opts.dir + "/" + id + ".pdb";
-	Chain B(name);
+//	std::string name = opts.dir + "/" + id + ".pdb";
+	Chain B(id);
 	MP_RESULT result;
 	if (B.nRes > 20 && B.nRes < opts.maxres) {
 		CMap mapB = MapFromPDB(B);
@@ -604,8 +608,8 @@ MP_RESULT Align(const CMap& mapA, const Chain& A, const OPTS& opts,
 MP_RESULT Align(const CMap& mapA, const OPTS& opts,
 		const MapAlign::PARAMS& params, const std::string& id) {
 
-	std::string name = opts.dir + "/" + id + ".pdb";
-	Chain B(name);
+//	std::string name = opts.dir + "/" + id + ".pdb";
+	Chain B(id);
 	MP_RESULT result;
 	if (B.nRes > 20 && B.nRes < opts.maxres) {
 		CMap mapB = MapFromPDB(B);
