@@ -1,8 +1,9 @@
 # _map_align_
 
+**!!! UNDER DEVELOPMENT !!!**
+
 _map_align_ takes two contact maps and returns an alignment that attempts to maximize the number of overlapping contacts while minimizing the number of gaps [1].
 
-**UNDER DEVELOPMENT**
 
 ![example image](https://raw.githubusercontent.com/sokrypton/map_align/master/map_align_fig.png)
 
@@ -19,7 +20,6 @@ make
 Options:  -s alignment.a3m               - input, required
           -c contacts.txt                - input, required
 
-          -D path to templates           - input, required
           -L list.txt with template IDs  - input, required
           -O prefix for saving top hits  - output, optional
           -N number of top hits to save    10
@@ -41,6 +41,18 @@ Options:  -s alignment.a3m               - input, required
  (with the higher alignment score) will appear in the final pool
 
 * `-O PREFIX` top models will be saved as `<PREFIX><TEMPLATE_ID>.pdb` where `TEMPLATE_ID` is an ID from the `list` file
+
+##### List of temlates
+
+List of templates is a text file with one entry per line. IDs of the templates are used in output and should not be longer than 10 characters.
+
+```
+/path/to/template1.pdb ID1
+/path/to/template2.pdb ID2
+
+...
+
+```
 
 ##### Contact map format
 
