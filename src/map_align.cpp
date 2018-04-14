@@ -45,6 +45,7 @@ struct OPTS {
 	double tmmax; /* TM-score cut-off for cleaning of top matches */
 	int maxres; /* max template size */
 	int niter; /* number of DP iterations */
+	std::string ali;
 };
 
 bool GetOpts(int argc, char *argv[], OPTS &opts);
@@ -79,7 +80,7 @@ int main(int argc, char *argv[]) {
 	/*
 	 * (0) process input parameters
 	 */
-	OPTS opts = { "", "", "", "", "", "", "", 10, 1, 0.8, 1000, 10 };
+	OPTS opts = { "", "", "", "", "", "", "", 10, 1, 0.8, 1000, 10, "" };
 	if (!GetOpts(argc, argv, opts)) {
 		PrintOpts(opts);
 		return 1;
@@ -326,12 +327,31 @@ int main(int argc, char *argv[]) {
 			printf(" %5d", l);
 		}
 		printf("\n");
+	}
 
-		/* save partial matches (if requested by user) */
-		if (opts.prefix != "") {
-			SaveMatch(opts.prefix + id + ".pdb", chains[i], result.a2b,
-					mapA.GetContFl(), seqA);
+	/* save alignment */
+	if (opts.ali != "") {
+		FILE *F = fopen(opts.ali.c_str(), "w");
+		if (F == NULL) {
+			printf("Error: cannot open alignment file (-A)\n");
+			exit(1);
 		}
+
+		for (unsigned i = 0; i < opts.num; i++) {
+			MP_RESULT &result = std::get<2>(top_hits[i]);
+			fprintf(F, "## %s %s\n", opts.seq.c_str(), std::get<0>(top_hits[i]).c_str());
+			fprintf(F, "# map_align\nscores_from_program: %.5f\n", 1.0/(1.0+exp(-result.score)));
+			fprintf(F, "0 %s\n0 ", seqA.c_str());
+			for (unsigned i = 0; i < seqA.length(); i++) {
+				if (result.a2b[i] >= 0) {
+					fprintf(F, "%c", seqA[i]);
+				} else {
+					fprintf(F, "-");
+				}
+			}
+			fprintf(F, "\n--\n");
+		}
+		fclose(F);
 	}
 
 	/*
@@ -363,6 +383,7 @@ void PrintOpts(const OPTS &opts) {
 //	printf("          -D path to templates           - input, required\n");
 	printf("          -L list.txt with template IDs  - input, required\n");
 	printf("          -O prefix for saving top hits  - output, optional\n");
+	printf("          -A alignment file              - output, optional\n");
 	printf("          -N number of top hits to save    %u\n", opts.num);
 	printf("          -T TM-score cleaning cut-off     %.2f\n", opts.tmmax);
 	printf("          -M max template size             %d\n\n", opts.maxres);
@@ -409,7 +430,7 @@ void PrintCap(const OPTS &opts) {
 bool GetOpts(int argc, char *argv[], OPTS &opts) {
 
 	char tmp;
-	while ((tmp = getopt(argc, argv, "hs:c:p:o:D:L:O:N:v:t:M:T:I:")) != -1) {
+	while ((tmp = getopt(argc, argv, "hs:c:p:o:D:L:O:N:v:t:M:T:I:A:")) != -1) {
 		switch (tmp) {
 		case 'h': /* help */
 			printf("!!! HELP !!!\n");
@@ -450,6 +471,9 @@ bool GetOpts(int argc, char *argv[], OPTS &opts) {
 			break;
 		case 'I': /* number of DP iterations */
 			opts.niter = atoi(optarg);
+			break;
+		case 'A': /* alignment file */
+			opts.ali = std::string(optarg);
 			break;
 		default:
 			return false;
