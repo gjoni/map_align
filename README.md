@@ -40,7 +40,7 @@ Options:  -s alignment.a3m               - input, required
  if two hits from the scan stage are similar with TM-score > `TM` then only one 
  (with the higher alignment score) will appear in the final pool
 
-* `-O PREFIX` top models will be saved as `<PREFIX><TEMPLATE_ID>.pdb` where `TEMPLATE_ID` is an ID from the `list` file
+* `-O PREFIX` top models will be saved as `<PREFIX><TEMPLATE_ID>.pdb` and `<PREFIX><TEMPLATE_ID>.ali` where `TEMPLATE_ID` is an ID from the `list` file
 
 ##### List of temlates
 
