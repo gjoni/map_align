@@ -335,7 +335,8 @@ MP_RESULT MapAlign::Align(const CMap& A, const CMap& B, const Chain &PA,
 
 		/* (2) between map_aligned PDBs */
 		unsigned dim;
-		result_best.sco.push_back(TMscore(swdata.PA, swdata.PB, a2b, dim));
+		result_best.sco.push_back(
+				TMscore(swdata.PA, swdata.PB, result_best.a2b, dim));
 		result_best.len.push_back(dim);
 
 		/* (3) MP-score for tmaligned region */
