@@ -22,7 +22,7 @@
 
 #define DMAX 5.0
 #define KMIN 3
-#define VERSION "V20180413"
+#define VERSION "V20180416"
 
 /*
  * TODO:
@@ -45,7 +45,7 @@ struct OPTS {
 	double tmmax; /* TM-score cut-off for cleaning of top matches */
 	int maxres; /* max template size */
 	int niter; /* number of DP iterations */
-	std::string ali;
+//	std::string ali;
 };
 
 bool GetOpts(int argc, char *argv[], OPTS &opts);
@@ -54,8 +54,8 @@ void PrintOpts(const OPTS &opts);
 void PrintCap(const OPTS &opts);
 
 CMap MapFromPDB(const Chain &C);
-void SaveMatch(std::string, const Chain&, const std::vector<int>&,
-		const std::vector<bool>&, const std::string&);
+void SaveMatch(const std::string&, const std::string&, const Chain&,
+		const MP_RESULT&, const std::string&);
 void SaveAtom(FILE *F, Atom *A, int atomNum, int resNum, char type);
 
 MP_RESULT Align(const CMap&, const Chain&, const OPTS&,
@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
 	/*
 	 * (0) process input parameters
 	 */
-	OPTS opts = { "", "", "", "", "", "", "", 10, 1, 0.8, 1000, 10, "" };
+	OPTS opts = { "", "", "", "", "", "", "", 10, 1, 0.8, 1000, 10 };
 	if (!GetOpts(argc, argv, opts)) {
 		PrintOpts(opts);
 		return 1;
@@ -176,32 +176,38 @@ int main(int argc, char *argv[]) {
 				/*
 				 * total score
 				 */
-				double s = -21.271633;
+				double s = -32.587763;
 
-				/* con/maxA */
-				s += 28.393102 * result.sco[0] / result.sco[2];
+				/* con/lenAM */
+				s += 32.425723 * result.sco[0] / result.len[3];
 
 				/* con/totA */
-				s += 8.615196 * result.sco[0] / result.sco[4];
+				s -= 7.995421 * result.sco[0] / result.sco[4];
+
+				/* con/totB */
+				s -= 9.383897 * result.sco[0] / result.sco[5];
 
 				/* gap/aliN */
-				s += 67.635687 * result.sco[1] / result.len[0];
+				s += 29.796289 * result.sco[1] / result.len[0];
 
-				/* E1,E2/aliN */
-				s -= 6.488589 * result.sco[6] / result.len[0];
-				s -= 2.859188 * result.sco[7] / result.len[0];
+				/* E1,E2/con */
+				s += 0.081586 * result.sco[6] / result.sco[0];
+				s -= 1.427804 * result.sco[7] / result.sco[0];
 
 				/* maxA/aliN */
-				s += 7.966686 * result.sco[2] / result.len[0];
+				s -= 2.479626 * result.sco[2] / result.len[0];
 
 				/* maxB/aliN */
-				s -= 0.556918 * result.sco[3] / result.len[0];
+				s -= 0.018272 * result.sco[3] / result.len[0];
 
 				/* log(Neff) */
-				s -= 0.921881 * result.sco[8];
+				s -= 0.805892 * result.sco[8];
 
 				/* log(aliN) */
-				s += 1.113898 * log(1.0 * result.len[0]);
+				s += 1.313624 * log(1.0 * result.len[0]);
+
+				/* lenAM/lenA */
+				s += 28.502603 * result.len[3] / result.len[1];
 
 //				result.score = 1.0 / (1.0 + exp(-s));
 				result.score = s;
@@ -327,33 +333,40 @@ int main(int argc, char *argv[]) {
 			printf(" %5d", l);
 		}
 		printf("\n");
+
+		/* save partial matches (if requested by user) */
+		if (opts.prefix != "") {
+			SaveMatch(opts.prefix, id, chains[i], result, seqA);
+		}
+
 	}
 
 	/* save alignment */
-	if (opts.ali != "") {
-		FILE *F = fopen(opts.ali.c_str(), "w");
-		if (F == NULL) {
-			printf("Error: cannot open alignment file (-A)\n");
-			exit(1);
-		}
-
-		for (unsigned i = 0; i < opts.num; i++) {
-			MP_RESULT &result = std::get<2>(top_hits[i]);
-			fprintf(F, "## %s %s\n", opts.seq.c_str(), std::get<0>(top_hits[i]).c_str());
-			fprintf(F, "# map_align\nscores_from_program: %.5f\n", 1.0/(1.0+exp(-result.score)));
-			fprintf(F, "0 %s\n0 ", seqA.c_str());
-			for (unsigned i = 0; i < seqA.length(); i++) {
-				if (result.a2b[i] >= 0) {
-					fprintf(F, "%c", seqA[i]);
-				} else {
-					fprintf(F, "-");
-				}
-			}
-			fprintf(F, "\n--\n");
-		}
-		fclose(F);
-	}
-
+//	if (opts.ali != "") {
+//		FILE *F = fopen(opts.ali.c_str(), "w");
+//		if (F == NULL) {
+//			printf("Error: cannot open alignment file (-A)\n");
+//			exit(1);
+//		}
+//
+//		for (unsigned i = 0; i < opts.num; i++) {
+//			MP_RESULT &result = std::get<2>(top_hits[i]);
+//			fprintf(F, "## %s %s\n", opts.seq.c_str(),
+//					std::get<0>(top_hits[i]).c_str());
+//			fprintf(F, "# map_align\nscores_from_program: %.5f\n",
+//					1.0 / (1.0 + exp(-result.score)));
+//			fprintf(F, "0 %s\n0 ", seqA.c_str());
+//			for (unsigned i = 0; i < seqA.length(); i++) {
+//				if (result.a2b[i] >= 0) {
+//					fprintf(F, "%c", seqA[i]);
+//				} else {
+//					fprintf(F, "-");
+//				}
+//			}
+//			fprintf(F, "\n--\n");
+//		}
+//		fclose(F);
+//	}
 	/*
 	 * (5) finish date/time
 	 */
@@ -375,19 +388,11 @@ void PrintOpts(const OPTS &opts) {
 	printf("\nUsage:   ./map_align [-option] [argument]\n\n");
 	printf("Options:  -s alignment.a3m               - input, required\n");
 	printf("          -c contacts.txt                - input, required\n\n");
-//	printf("          ***************** single template ****************\n");
-//	printf("          -p template.pdb                - input, required\n");
-//	printf("          -o match.pdb                   - output, optional\n\n");
-//	printf("                                  OR                        \n");
-//	printf("          ************** library of templates **************\n");
-//	printf("          -D path to templates           - input, required\n");
 	printf("          -L list.txt with template IDs  - input, required\n");
 	printf("          -O prefix for saving top hits  - output, optional\n");
-	printf("          -A alignment file              - output, optional\n");
 	printf("          -N number of top hits to save    %u\n", opts.num);
 	printf("          -T TM-score cleaning cut-off     %.2f\n", opts.tmmax);
 	printf("          -M max template size             %d\n\n", opts.maxres);
-//	printf("          ********************** misc **********************\n");
 	printf("          -I number of DP iterations       %d\n", opts.niter);
 	printf("          -t number of threads             %d\n", opts.nthreads);
 	printf("\n");
@@ -430,7 +435,7 @@ void PrintCap(const OPTS &opts) {
 bool GetOpts(int argc, char *argv[], OPTS &opts) {
 
 	char tmp;
-	while ((tmp = getopt(argc, argv, "hs:c:p:o:D:L:O:N:v:t:M:T:I:A:")) != -1) {
+	while ((tmp = getopt(argc, argv, "hs:c:p:o:D:L:O:N:v:t:M:T:I:")) != -1) {
 		switch (tmp) {
 		case 'h': /* help */
 			printf("!!! HELP !!!\n");
@@ -471,9 +476,6 @@ bool GetOpts(int argc, char *argv[], OPTS &opts) {
 			break;
 		case 'I': /* number of DP iterations */
 			opts.niter = atoi(optarg);
-			break;
-		case 'A': /* alignment file */
-			opts.ali = std::string(optarg);
 			break;
 		default:
 			return false;
@@ -583,19 +585,26 @@ void SaveAtom(FILE *F, Atom *A, int atomNum, int resNum, char type) {
 
 }
 
-void SaveMatch(std::string name, const Chain& C, const std::vector<int>& a2b,
-		const std::vector<bool> &has_cont, const std::string& seq) {
+void SaveMatch(const std::string& name, const std::string& id, const Chain& C,
+		const MP_RESULT& result, const std::string& seq) {
 
-	FILE *F = fopen(name.c_str(), "w");
+	std::string pdbname = name + id + ".pdb";
+	std::string aliname = name + id + ".ali";
+
+	/*
+	 * (1) save partial thread (in PDB format)
+	 */
+	FILE *F = fopen(pdbname.c_str(), "w");
 	if (F == NULL) {
-		printf("Error: cannot open PDB file for saving '%s'\n", name.c_str());
+		printf("Error: cannot open PDB file for saving '%s'\n",
+				pdbname.c_str());
 		return;
 	}
 
 	unsigned counter = 0;
-	for (unsigned i = 0; i < a2b.size(); i++) {
-		int idx = a2b[i];
-		if (idx > -1 /* && has_cont[i] */) {
+	for (unsigned i = 0; i < result.a2b.size(); i++) {
+		int idx = result.a2b[i];
+		if (idx > -1) {
 			Residue &R = C.residue[idx];
 			if (R.N == NULL || R.C == NULL || R.O == NULL) {
 				continue;
@@ -610,6 +619,46 @@ void SaveMatch(std::string name, const Chain& C, const std::vector<int>& a2b,
 		}
 	}
 
+	fclose(F);
+
+	/*
+	 * (2) save alignment (in Grishin's format)
+	 */
+	F = fopen(aliname.c_str(), "w");
+	if (F == NULL) {
+		printf("Error: cannot open PDB ali file for saving '%s.ali'\n",
+				name.c_str());
+		exit(1);
+	}
+
+	// get sequence identity
+	int seqidcnt = 0;
+	for (unsigned j = 0; j < seq.length(); j++) {
+		if (result.a2b[j] >= 0) {
+			Residue &R = C.residue[result.a2b[j]];
+			seqidcnt += (seq[j] == AAA1[(int) R.type]);
+		}
+	}
+	fprintf(F, "## %s %s\n", name.c_str(), id.c_str());
+	fprintf(F, "# map_align (%.2f%% id)\nscores_from_program: %.5f 999 0\n",
+			100.0 * seqidcnt / seq.length(), 1.0 / (1.0 + exp(-result.score)));
+	fprintf(F, "0 %s\n", seq.c_str());
+	for (unsigned j = 0; j < seq.length(); j++) {
+		if (result.a2b[j] >= 0) {
+			Residue &R = C.residue[result.a2b[j]];
+			fprintf(F, "%d ", R.seqNum - 1);
+			break;
+		}
+	}
+	for (unsigned j = 0; j < seq.length(); j++) {
+		if (result.a2b[j] >= 0) {
+			Residue &R = C.residue[result.a2b[j]];
+			fprintf(F, "%c", AAA1[(int) R.type]);
+		} else {
+			fprintf(F, "-");
+		}
+	}
+	fprintf(F, "\n--\n");
 	fclose(F);
 
 }
