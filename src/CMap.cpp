@@ -53,6 +53,7 @@ CMap::CMap(const std::string& name, const std::string& sequence) :
 	FILE *F = fopen(name.c_str(), "r");
 	if (F == NULL) {
 		printf("Error: cannot open contacts file '%s'\n", name.c_str());
+		exit(1);
 	}
 
 	/* temp. adjacency matrix */
