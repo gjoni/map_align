@@ -176,38 +176,38 @@ int main(int argc, char *argv[]) {
 				/*
 				 * total score
 				 */
-				double s = -33.985025;
+				double s = -33.445111;
 
 				/* con/lenAM */
-				s += 31.143603 * result.sco[0] / result.len[3];
+				s += 30.265694 * result.sco[0] / result.len[3];
 
-				/* con/totA */
-				s -= 6.772155 * result.sco[0] / result.sco[4];
+				/* con/maxA */
+				s += 12.276828 * result.sco[0] / result.sco[2];
 
-				/* con/totB */
-				s -= 8.216048 * result.sco[0] / result.sco[5];
+				/* con/maxB */
+				s -= 20.575442 * result.sco[0] / result.sco[3];
 
 				/* gap/aliN */
-				s += 27.313672 * result.sco[1] / result.len[0];
+				s += 60.871485 * result.sco[1] / result.len[0];
 
 				/* E1,E2/con */
-				s -= 0.075249 * result.sco[6] / result.sco[0];
-				s -= 1.411333 * result.sco[7] / result.sco[0];
+				s -= 2.245558 * result.sco[6] / result.sco[0];
+				s -= 1.892705 * result.sco[7] / result.sco[0];
 
 				/* maxA/aliN */
-				s -= 1.783377 * result.sco[2] / result.len[0];
+				s += 1.491449 * result.sco[2] / result.len[0];
 
 				/* maxB/aliN */
-				s -= 0.008428 * result.sco[3] / result.len[0];
+				s -= 0.983439 * result.sco[3] / result.len[0];
 
 				/* log(Neff) */
-				s -= 0.819044 * result.sco[8];
+				s -= 1.204369 * result.sco[8];
 
 				/* log(aliN) */
-				s += 1.360610 * log(1.0 * result.len[0]);
+				s += 0.981509 * log(1.0 * result.len[0]);
 
 				/* lenAM/lenA */
-				s += 28.942630 * result.len[3] / result.len[1];
+				s += 28.959441 * result.len[3] / result.len[1];
 
 //				result.score = 1.0 / (1.0 + exp(-s));
 				result.score = s;
