@@ -66,9 +66,14 @@ i  j  d1  d2  p
 
 ### Examples
 
+`
+cd example
+tar xf ecod70.tar.gz
+`
+
 Align a contact map to a library of templates (simplest call):
 ```
-$ ./map_align -s example/T0806.fas -c example/T0806.con -L example/list
+$ ../map_align -s T0806.a3m -c T0806.con -L ecod70.list
 ```
 
 Align a contact map to a library of templates saving top 5 hits at TM-score=70% identity cut-off and running the program on 4 cores:
