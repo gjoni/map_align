@@ -1,8 +1,9 @@
 # _map_align_
 
+**!!! UNDER DEVELOPMENT !!!**
+
 _map_align_ takes two contact maps and returns an alignment that attempts to maximize the number of overlapping contacts while minimizing the number of gaps [1].
 
-**UNDER DEVELOPMENT**
 
 ![example image](https://raw.githubusercontent.com/sokrypton/map_align/master/map_align_fig.png)
 
@@ -19,7 +20,6 @@ make
 Options:  -s alignment.a3m               - input, required
           -c contacts.txt                - input, required
 
-          -D path to templates           - input, required
           -L list.txt with template IDs  - input, required
           -O prefix for saving top hits  - output, optional
           -N number of top hits to save    10
@@ -40,7 +40,17 @@ Options:  -s alignment.a3m               - input, required
  if two hits from the scan stage are similar with TM-score > `TM` then only one 
  (with the higher alignment score) will appear in the final pool
 
-* `-O PREFIX` top models will be saved as `<PREFIX><TEMPLATE_ID>.pdb` where `TEMPLATE_ID` is an ID from the `list` file
+* `-O PREFIX` top models will be saved as `<PREFIX><TEMPLATE_ID>.pdb` and `<PREFIX><TEMPLATE_ID>.ali` where `TEMPLATE_ID` is an ID from the `list` file
+
+##### List of temlates
+
+List of templates is a text file with one entry per line. IDs of the templates are used in output and should not be longer than 10 characters.
+
+```
+/path/to/template1.pdb ID1
+/path/to/template2.pdb ID2
+...
+```
 
 ##### Contact map format
 
@@ -58,12 +68,12 @@ i  j  d1  d2  p
 
 Align a contact map to a library of templates (simplest call):
 ```
-$ ./map_align -s example/T0806.fas -c example/T0806.con -D example -L example/list
+$ ./map_align -s example/T0806.fas -c example/T0806.con -L example/list
 ```
 
 Align a contact map to a library of templates saving top 5 hits at TM-score=70% identity cut-off and running the program on 4 cores:
 ```
-$ ./map_align -s example/T0806.fas -c example/T0806.con -D example -L example/list -N 5 -T 0.70 -t 4 -O example/T0806.
+$ ./map_align -s example/T0806.fas -c example/T0806.con -L example/list -N 5 -T 0.70 -t 4 -O example/T0806.
 ```
 
 
