@@ -66,19 +66,19 @@ i  j  d1  d2  p
 
 ### Examples
 
-`
+```
 cd example
 tar xf ecod70.tar.gz
-`
+```
 
 Align a contact map to a library of templates (simplest call):
 ```
-$ ../map_align -s T0806.a3m -c T0806.con -L ecod70.list
+../map_align -s T0806.a3m -c T0806.con -L ecod70.list
 ```
 
-Align a contact map to a library of templates saving top 5 hits at TM-score=70% identity cut-off and running the program on 4 cores:
+Align a contact map to a library of templates saving top 5 hits at TM-score=70% identity cut-off and running the program on 4 cores (takes ~7 minutes on i5):
 ```
-$ ./map_align -s example/T0806.fas -c example/T0806.con -L example/list -N 5 -T 0.70 -t 4 -O example/T0806.
+../map_align -s T0806.a3m -c T0806.con -L ecod70.list -N 5 -T 0.70 -t 4 -O T0806.
 ```
 
 
