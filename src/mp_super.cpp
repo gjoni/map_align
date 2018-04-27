@@ -30,6 +30,7 @@ struct OPTS {
 	int dim; /* number of residues */
 	unsigned N;
 	int nthreads; /* number of threads to use */
+	double dmax; /* distance cut-off - for trimming*/
 };
 
 bool GetOpts(int argc, char *argv[], OPTS &opts);
@@ -48,14 +49,14 @@ struct ALISTAT {
 	int i, j;
 };
 
-ALISTAT TMscore(const Chain&, const Chain&, const int);
+ALISTAT TMscore(const Chain&, const Chain&, const int, bool*);
 
 int main(int argc, char *argv[]) {
 
 	/*
 	 * (0) process input parameters
 	 */
-	OPTS opts = { "", "", "", -1, 0, 1 };
+	OPTS opts = { "", "", "", -1, 0, 1, 0.0 };
 	if (!GetOpts(argc, argv, opts)) {
 		PrintOpts(opts);
 		return 1;
@@ -158,7 +159,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		/* !!! chain[j] is aligned onto chain[i] !!! */
-		alistat[ij] = TMscore(chains[j], chains[i], opts.dim);
+		alistat[ij] = TMscore(chains[j], chains[i], opts.dim, NULL);
 		alistat[ij].i = j;
 		alistat[ij].j = i;
 		tm_avg += alistat[ij].tm;
@@ -204,6 +205,51 @@ int main(int argc, char *argv[]) {
 		}
 		mtx[i][0] /= n;
 		mtx[i][1] /= (nij - n);
+	}
+
+	/* trim & recalculate average TM-score */
+	if (opts.dmax > 0.0) {
+
+		/* mask residues with deviation > opts.dmax */
+		bool *fl = (bool*) malloc(opts.dim * sizeof(bool));
+		double cov = 0.0;
+		for (int i = 0; i < opts.dim; i++) {
+			fl[i] = (mtx[i][2] < opts.dmax);
+			cov += fl[i];
+		}
+
+		double tm_avg2 = 0.0;
+
+		/* realign */
+#if defined(_OPENMP)
+#pragma omp parallel for reduction(+:tm_avg2) schedule(dynamic) proc_bind(close)
+#endif
+		for (size_t ij = 0; ij < nij; ij++) {
+
+			size_t i, j;
+			{
+				size_t ii = n * (n + 1) / 2 - 1 - ij;
+				size_t K = floor((sqrt(8 * ii + 1) - 1) / 2);
+				i = n - 1 - K;
+				j = ij - n * i + i * (i + 1) / 2;
+			}
+
+			/* exclude self-matches */
+			if (i == j) {
+				continue;
+			}
+
+			ALISTAT res = TMscore(chains[j], chains[i], opts.dim, fl);
+			tm_avg2 += res.tm;
+
+		}
+
+		tm_avg2 /= (nij - n);
+		printf("# cov= %.3f   tm_new= %.3f   tm_old= %.3f\n", cov / opts.dim,
+				tm_avg2, tm_avg);
+
+		free(fl);
+
 	}
 
 //	for (int i = 0; i < opts.dim; i++) {
@@ -346,6 +392,7 @@ void PrintOpts(const OPTS &opts) {
 	printf("          -n number of residues          - input, optional\n");
 	printf("          -c contacts.txt                - output, optional\n");
 	printf("          -b bfactors.txt                - output, optional\n");
+	printf("          -d distance cut-off              %.1f\n", opts.dmax);
 	printf("          -t number of threads             %d\n\n", opts.nthreads);
 
 }
@@ -369,6 +416,7 @@ void PrintCap(const OPTS &opts) {
 	printf("# %20s : %d\n", "number of residues", opts.dim);
 	printf("# %20s : %s\n", "contacts file", opts.cont.c_str());
 	printf("# %20s : %s\n", "B-factors file", opts.bfac.c_str());
+	printf("# %20s : %.1f\n", "distance cut-off", opts.dmax);
 	printf("# %20s : %d\n", "threads", opts.nthreads);
 
 	printf("# %s\n", std::string(70, '-').c_str());
@@ -378,7 +426,7 @@ void PrintCap(const OPTS &opts) {
 bool GetOpts(int argc, char *argv[], OPTS &opts) {
 
 	char tmp;
-	while ((tmp = getopt(argc, argv, "hl:c:b:n:t:")) != -1) {
+	while ((tmp = getopt(argc, argv, "hl:c:b:n:t:d:")) != -1) {
 		switch (tmp) {
 		case 'h': /* help */
 			printf("!!! HELP !!!\n");
@@ -399,6 +447,9 @@ bool GetOpts(int argc, char *argv[], OPTS &opts) {
 		case 't': /* number of threads */
 			opts.nthreads = atoi(optarg);
 			break;
+		case 'd': /* distance cut-off */
+			opts.dmax = atof(optarg);
+			break;
 		default:
 			return false;
 			break;
@@ -414,7 +465,7 @@ bool GetOpts(int argc, char *argv[], OPTS &opts) {
 
 }
 
-ALISTAT TMscore(const Chain &A, const Chain &B, const int dim) {
+ALISTAT TMscore(const Chain &A, const Chain &B, const int dim, bool *fl) {
 
 	ALISTAT res = { std::vector<bool>(dim, 0), std::vector<double>(dim, 0.0), {
 			0.0, 0.0, 0.0 }, { { 1.0, 0.0, 0.0 }, { 0.0, 1.0, 0.0 }, { 0.0, 0.0,
@@ -432,12 +483,25 @@ ALISTAT TMscore(const Chain &A, const Chain &B, const int dim) {
 	}
 
 	int nali = 0;
-	for (int i = 0; i < dim; i++) {
-		if (flag[i] == 2) {
-			nali++;
-			map.push_back(i);
-			res.pair[i] = true;
+
+	if (fl != NULL) {
+		for (int i = 0; i < dim; i++) {
+			if (flag[i] == 2 && fl[i] == true) {
+				flag[i]++;
+				nali++;
+				map.push_back(i);
+				res.pair[i] = true;
+			}
 		}
+	} else {
+		for (int i = 0; i < dim; i++) {
+			if (flag[i] == 2) {
+				nali++;
+				map.push_back(i);
+				res.pair[i] = true;
+			}
+		}
+
 	}
 
 	if (nali < 5) {
@@ -457,7 +521,8 @@ ALISTAT TMscore(const Chain &A, const Chain &B, const int dim) {
 		double **xyz_ptr = x;
 		for (int i = 0; i < A.nRes; i++) {
 			const Residue &R = A.residue[i];
-			if (flag[R.seqNum - 1] == 2) {
+			if ((flag[R.seqNum - 1] == 2 && fl == NULL)
+					|| (flag[R.seqNum - 1] == 3 && fl != NULL)) {
 				(*xyz_ptr)[0] = R.CA->x;
 				(*xyz_ptr)[1] = R.CA->y;
 				(*xyz_ptr)[2] = R.CA->z;
@@ -468,7 +533,8 @@ ALISTAT TMscore(const Chain &A, const Chain &B, const int dim) {
 		xyz_ptr = y;
 		for (int i = 0; i < B.nRes; i++) {
 			const Residue &R = B.residue[i];
-			if (flag[R.seqNum - 1] == 2) {
+			if ((flag[R.seqNum - 1] == 2 && fl == NULL)
+					|| (flag[R.seqNum - 1] == 3 && fl != NULL)) {
 				(*xyz_ptr)[0] = R.CA->x;
 				(*xyz_ptr)[1] = R.CA->y;
 				(*xyz_ptr)[2] = R.CA->z;
@@ -483,13 +549,6 @@ ALISTAT TMscore(const Chain &A, const Chain &B, const int dim) {
 	TMalign TM;
 	res.tm = TM.GetTMscore(x, y, nali);
 
-	/* get alignment */
-//	int *ali = (int*) malloc(nali * sizeof(int));
-//	TM.GetAliX2Y(ali, nali);
-	/* pair presence frequency */
-//	for (int i = 0; i < nali; i++) {
-//		res.pair_tm[map[i]] = (ali[i] >= 0);
-//	}
 	/* transform y[..][3] coordinates */
 	TM.GetTU(res.t, res.u);
 	for (int i = 0; i < nali; i++) {
@@ -522,7 +581,6 @@ ALISTAT TMscore(const Chain &A, const Chain &B, const int dim) {
 	}
 	free(x);
 	free(y);
-//	free(ali);
 
 	return res;
 
