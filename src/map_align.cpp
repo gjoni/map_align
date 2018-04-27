@@ -158,7 +158,7 @@ int main(int argc, char *argv[]) {
 	int nskipped = 0;
 
 #if defined(_OPENMP)
-#pragma omp parallel for schedule(dynamic) num_threads(opts.nthreads) proc_bind(close)
+#pragma omp parallel for schedule(dynamic) num_threads(opts.nthreads)
 #endif
 	for (unsigned i = 0; i < listB.size(); i++) {
 

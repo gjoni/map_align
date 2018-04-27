@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
 	double tm_avg = 0.0;
 
 #if defined(_OPENMP)
-#pragma omp parallel for reduction(+:tm_avg) schedule(dynamic) proc_bind(close)
+#pragma omp parallel for reduction(+:tm_avg) schedule(dynamic)
 #endif
 	for (size_t ij = 0; ij < nij; ij++) {
 
@@ -222,7 +222,7 @@ int main(int argc, char *argv[]) {
 
 		/* realign */
 #if defined(_OPENMP)
-#pragma omp parallel for reduction(+:tm_avg2) schedule(dynamic) proc_bind(close)
+#pragma omp parallel for reduction(+:tm_avg2) schedule(dynamic)
 #endif
 		for (size_t ij = 0; ij < nij; ij++) {
 
