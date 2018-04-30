@@ -209,8 +209,10 @@ int main(int argc, char *argv[]) {
 				/* lenAM/lenA */
 				s += 28.959441 * result.len[3] / result.len[1];
 
+				result.score = 1.0 / (1.0 + exp(-0.661621 * s + 6.66236));
+
 //				result.score = 1.0 / (1.0 + exp(-s));
-				result.score = s;
+//				result.score = s;
 
 				printf("M %10s %15s", listB[i].second.c_str(),
 						result.label.c_str());
@@ -641,7 +643,7 @@ void SaveMatch(const std::string& name, const std::string& id, const Chain& C,
 	}
 	fprintf(F, "## %s %s\n", name.c_str(), id.c_str());
 	fprintf(F, "# map_align (%.2f%% id)\nscores_from_program: %.5f 999 0\n",
-			100.0 * seqidcnt / seq.length(), 1.0 / (1.0 + exp(-result.score)));
+			100.0 * seqidcnt / seq.length(), result.score);
 	fprintf(F, "0 %s\n", seq.c_str());
 	for (unsigned j = 0; j < seq.length(); j++) {
 		if (result.a2b[j] >= 0) {
